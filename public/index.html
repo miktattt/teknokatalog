@@ -408,6 +408,7 @@ textarea.form-control{resize:vertical;min-height:80px}
             <div class="form-group"><label>Paket İçeriği (adet)</label><input class="form-control" id="prod-pack-qty" type="number" min="1" value="1" placeholder="1"><div style="font-size:11px;color:var(--text3);margin-top:4px">Pakette kaç adet var (1 = tekil ürün)</div></div>
             <div class="form-group"><label>Min. Sipariş Adedi</label><input class="form-control" id="prod-min-qty" type="number" min="1" value="1" placeholder="1"><div style="font-size:11px;color:var(--text3);margin-top:4px">Müşteri en az kaç adet seçebilir</div></div>
           </div>
+          <div class="form-group"><label>Stok Adedi <span style="font-weight:400;color:var(--text3)">(bos = limitsiz)</span></label><input class="form-control" id="prod-stock-qty" type="number" min="-1" value="" placeholder="-1 limitsiz"><div style="font-size:11px;color:var(--text3);margin-top:4px">Bos veya -1 = limitsiz &nbsp; 0 = stokta yok</div></div>
           <div class="form-group"><label>Özellikler (virgülle)</label><input class="form-control" id="prod-specs" placeholder="M3 Chip, 16GB RAM"></div>
           <div class="form-group"><label>Rozet</label>
             <select class="form-control" id="prod-badge">
@@ -432,9 +433,9 @@ textarea.form-control{resize:vertical;min-height:80px}
         <div class="card"><div class="card-title">📊 Kategori Özeti</div><div id="admin-cat-stats"></div></div>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
-        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><strong>📦 Tüm Ürünler</strong><button class="btn btn-edit" onclick="openBulkPriceModal()">🏷️ Toplu Fiyat Güncelle</button></div>
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;gap:8px"><strong style="flex:1;font-size:14px">Tüm Ürünler</strong><button class="btn btn-edit btn-sm" onclick="exportProductsExcel()">Excel İndir</button><label class="btn btn-sm" style="background:#f0fdf4;color:var(--success);border:1px solid rgba(22,163,74,.2);cursor:pointer;margin:0">Excel Aktar<input type="file" id="import-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importProductsExcel(this)"></label><button class="btn btn-edit btn-sm" onclick="openBulkPriceModal()">Toplu Fiyat</button></div>
         <div class="table-wrap">
-          <table class="data-table"><thead><tr><th>Görsel</th><th>SKU</th><th>Ürün Adı / Marka</th><th>Kategori</th><th>Fiyat</th><th>Min/Paket</th><th>İşlem</th></tr></thead>
+          <table class="data-table"><thead><tr><th>Görsel</th><th>SKU</th><th>Ürün Adı / Marka</th><th>Kategori</th><th>Fiyat</th><th>Stok</th><th>Min/Paket</th><th>İşlem</th></tr></thead>
           <tbody id="products-tbody"></tbody></table>
         </div>
       </div>
@@ -676,10 +677,11 @@ function renderCatalog(){
 function setCategory(cat){activeCat=cat;renderCatalog()}
 
 function filterProducts(){
-  const q=V('search-input').toLowerCase();
+  const q=V('search-input').toLowerCase().trim();
   const filtered=allProducts.filter(p=>{
     const mc=activeCat==='Tümü'||p.category===activeCat;
-    const mq=!q||p.name.toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q);
+    if(!q) return mc;
+    const mq=p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q);
     return mc&&mq;
   });
   const grid=$('products-grid');
@@ -693,11 +695,13 @@ function filterProducts(){
     const price=currentUser
       ?`<span class="product-price">₺${Number(p.price).toLocaleString('tr-TR')}</span>`
       :`<button onclick="openAuth('login')" class="price-lock">🔒 Fiyatı Gör</button>`;
+    const outOfStock=p.stock_qty===0;
+    const stockLabel=p.stock_qty>0?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(22,163,74,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">${p.stock_qty} adet</span>`:p.stock_qty===0?'<span style="position:absolute;bottom:8px;right:8px;background:rgba(220,38,38,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Stokta Yok</span>':'';
     const addBtn=currentUser
-      ?`<button class="add-btn ${inCart?'added':''}" onclick="event.stopPropagation();addToCart(${p.id})">${inCart?'✓':'+'}</button>`
+      ?(outOfStock?'<button class="add-btn" disabled style="background:var(--surface2);color:var(--text3);cursor:not-allowed;opacity:.7">Stokta Yok</button>':`<button class="add-btn ${inCart?'added':''}" onclick="event.stopPropagation();addToCart(${p.id})">${inCart?'✓':'+'}</button>`)
       :`<button onclick="event.stopPropagation();openAuth('login')" class="add-btn" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border)">Giriş</button>`;
     return `<div class="product-card" onclick="openProductDetail(${p.id})">
-      <div class="product-img">${imgHtml}${badge}</div>
+      <div class="product-img">${imgHtml}${badge}${stockLabel}</div>
       <div class="product-body">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="product-cat">${p.category}${p.brand?' · '+p.brand:''}</span>${p.sku?`<span style="font-size:10px;color:var(--text3);font-family:monospace">${p.sku}</span>`:''}</div>
         <div class="product-name">${p.name}</div>
@@ -1033,16 +1037,95 @@ async function loadAdminLists(){
           <td>${statusBadge(l.status)}</td>
           <td style="display:flex;gap:4px;align-items:center">
             <button class="btn btn-ghost btn-sm" onclick="viewList(${l.id},'admin')">Detay</button>
-            ${l.status==='pending'?`<button class="btn btn-success btn-sm" onclick="approveList(${l.id})">✓</button>`
-              :l.status==='approved'?`<span style="font-size:11px;color:var(--text3)">Onaylandı</span>`:''}
+            <div style="display:flex;gap:4px">${l.status==='pending'?`<button class="btn btn-success btn-sm" onclick="approveList(${l.id})">✓ Onayla</button><button class="btn btn-danger btn-sm" onclick="rejectList(${l.id})">✗ Ret</button>`:l.status==='approved'?'<span style="font-size:11px;color:var(--success);font-weight:600">✓ Onaylandi</span>':'<span style="font-size:11px;color:var(--danger);font-weight:600">✗ Reddedildi</span>'}</div>
           </td>
         </tr>`).join('')}
       </tbody></table>`;
   }catch(e){con.innerHTML=`<div style="padding:20px;color:var(--danger)">${e.message}</div>`}
 }
+
+// ── EXCEL DISA AKTARMA ──────────────────────────────────
+function exportProductsExcel(){
+  const products = window._allAdminProducts||[];
+  if(!products.length){toast('Once urunler sekmesini acin');return}
+  const cols=['SKU','Marka','Urun Adi','Kategori','Aciklama','Fiyat','Ikon','Badge','Paket Adedi','Min Siparis','Stok'];
+  const rows=products.map(p=>[
+    p.sku||'',p.brand||'',p.name,p.category,p.description||'',
+    p.price,p.icon||'',p.badge||'',p.pack_qty||1,p.min_qty||1,
+    p.stock_qty!=null?p.stock_qty:-1
+  ]);
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#1A56DB" ss:Pattern="Solid"/><Font ss:Color="#FFFFFF" ss:Bold="1"/></Style></Styles><Worksheet ss:Name="Urunler"><Table><Row>${cols.map(c=>`<Cell ss:StyleID="h"><Data ss:Type="String">${c}</Data></Cell>`).join('')}</Row>${rows.map(r=>`<Row>${r.map(v=>`<Cell><Data ss:Type="${typeof v==='number'?'Number':'String'}">${v}</Data></Cell>`).join('')}</Row>`).join('')}</Table></Worksheet></Workbook>`;
+  const blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='urunler.xls';a.click();
+  URL.revokeObjectURL(url);
+  toast('Excel indiriliyor');
+}
+
+// ── EXCEL ICEYE AKTARMA ──────────────────────────────────
+async function importProductsExcel(input){
+  const file=input.files[0]; if(!file) return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  
+  if(ext==='csv'){
+    const text=await file.text();
+    const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const headers=lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+    const products=lines.slice(1).map(line=>{
+      const vals=line.match(/(".*?"|[^,]+)/g)||[];
+      const clean=vals.map(v=>v.replace(/^"|"$/g,'').trim());
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=clean[i]||'');
+      return {
+        sku:obj['sku']||obj['urun kodu']||'',
+        brand:obj['marka']||'',
+        name:obj['urun adi']||obj['adi']||obj['name']||'',
+        category:obj['kategori']||obj['category']||'Genel',
+        description:obj['aciklama']||obj['description']||'',
+        price:parseFloat(obj['fiyat']||obj['price']||0)||0,
+        icon:obj['ikon']||obj['icon']||'',
+        badge:obj['badge']||'',
+        pack_qty:parseInt(obj['paket adedi']||obj['pack_qty']||1)||1,
+        min_qty:parseInt(obj['min siparis']||obj['min_qty']||1)||1,
+        stock_qty:parseInt(obj['stok']||obj['stock_qty']||-1)||(-1),
+      };
+    }).filter(p=>p.name);
+    await doImport(products);
+  } else {
+    toast('CSV formati destekleniyor. Excel icin once CSV olarak kaydedin.');
+  }
+  input.value='';
+}
+
+async function doImport(products){
+  if(!products.length){toast('Iceri aktarilacak urun bulunamadi');return}
+  const confirmed=confirm(`${products.length} urun iceri aktarilacak. Devam?`);
+  if(!confirmed) return;
+  try{
+    const res=await api('POST','/api/products/bulk-import',{products});
+    toast(`${res.ok} urun eklendi${res.fail?', '+res.fail+' hata':''}`);
+    await loadProducts(); await loadProductsSection();
+  }catch(e){toast('Hata: '+e.message)}
+}
 async function approveList(id){
-  try{await api('PUT',`/api/lists/${id}/approve`,{});toast('Liste onaylandı ✓');loadAdminLists();updateAdminBadge()}
+  const note=await showNotePrompt('Onay Notu (opsiyonel)','Musteriye iletilecek not...');
+  if(note===null) return;
+  try{await api('PUT',`/api/lists/${id}/approve`,{admin_note:note});toast('Liste onaylandi');loadAdminLists();updateAdminBadge()}
   catch(e){toast('Hata: '+e.message)}
+}
+async function rejectList(id){
+  const note=await showNotePrompt('Red Nedeni','Musteriye red nedenini yazin...');
+  if(note===null) return;
+  try{await api('PUT',`/api/lists/${id}/reject`,{admin_note:note});toast('Liste reddedildi');loadAdminLists();updateAdminBadge()}
+  catch(e){toast('Hata: '+e.message)}
+}
+function showNotePrompt(title,placeholder){
+  return new Promise(resolve=>{
+    openModal(title,'<div class="form-group" style="margin:0"><textarea class="form-control" id="admin-note-inp" placeholder="'+placeholder+'" rows="3" style="resize:none;width:100%"></textarea></div>',
+      [{label:'Gonder',cls:'btn-primary',action:'window._noteRes(document.getElementById("admin-note-inp").value||"");closeModal()'},
+       {label:'Iptal',cls:'btn-ghost',action:'window._noteRes(null);closeModal()'}]);
+    window._noteRes=resolve;
+  });
 }
 
 // Varsayılan kategoriler
@@ -1115,6 +1198,7 @@ async function loadProductsSection(){
       <td><strong style="font-size:13px">${p.name}</strong>${p.brand?`<div style="font-size:11px;color:var(--accent);margin-top:1px">${p.brand}</div>`:''}</td>
       <td style="font-size:13px">${p.category}</td>
       <td><strong>₺${Number(p.price).toLocaleString('tr-TR')}</strong></td>
+      <td style="text-align:center">${p.stock_qty===0?'<span class="status status-rejected" style="font-size:10px">Yok</span>':p.stock_qty>0?`<span class="status status-approved" style="font-size:10px">${p.stock_qty}</span>`:`<span style="color:var(--text3);font-size:16px">∞</span>`}</td>
       <td style="font-size:12px;color:var(--text2)">${(p.min_qty||1)>1?`Min: ${p.min_qty}`:'—'}${(p.pack_qty||1)>1?`<br>Paket: ${p.pack_qty}`:''}  </td>
       <td style="display:flex;gap:4px"><button class="btn btn-edit btn-sm" onclick="openEditProduct(${p.id})">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">Sil</button></td>
     </tr>`;
@@ -1157,9 +1241,10 @@ async function addProduct(){
       price, icon:V('prod-icon')||'📦', image:imageUrl, specs, badge:V('prod-badge'),
       pack_qty: parseInt(V('prod-pack-qty'))||1,
       min_qty:  parseInt(V('prod-min-qty'))||1,
+      stock_qty: V('prod-stock-qty')===''?-1:parseInt(V('prod-stock-qty')),
     });
     ['prod-sku','prod-brand','prod-name','prod-desc','prod-price','prod-icon','prod-specs'].forEach(id=>$(id).value='');
-    $('prod-pack-qty').value='1'; $('prod-min-qty').value='1';
+    $('prod-pack-qty').value='1'; $('prod-min-qty').value='1'; $('prod-stock-qty').value='';
     $('add-img-input').value='';
     $('add-img-preview').style.display='none';
     await loadProducts();await loadProductsSection();
@@ -1581,7 +1666,7 @@ async function viewList(id,context){
       <span style="font-weight:700;color:var(--accent);font-size:13px">₺${(i.price*i.qty).toLocaleString('tr-TR')}</span>
     </div>`).join('');
   const btns=[];
-  if(context==='admin'&&list.status==='pending') btns.push({label:'✓ Onayla',cls:'btn-success',action:`approveList(${id});closeModal();loadAdminLists()`});
+  if(context==='admin'&&list.status==='pending'){btns.push({label:'Onayla',cls:'btn-success',action:`closeModal();approveList(${id})`});btns.push({label:'Reddet',cls:'btn-danger',action:`closeModal();rejectList(${id})`});}
   btns.push({label:'Kapat',cls:'btn-ghost',action:'closeModal()'});
   openModal(`📋 ${list.list_code}`,`
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding:14px;background:var(--bg);border-radius:10px">
