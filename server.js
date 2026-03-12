@@ -10,15 +10,11 @@ const multer   = require('multer');
 
 const app    = express();
 const PORT   = process.env.PORT || 3000;
-const SECRET = process.env.JWT_SECRET || 'teknokatalog-guvenli-anahtar-72';
+const SECRET = process.env.JWT_SECRET || 'gizli-anahtar-degistir';
 
-// ── Klasörler ──────────────────────────────────────────
+// ── Uploads klasörü ────────────────────────────────────
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
-const dbDir      = path.join(__dirname, 'db');
-
-[uploadsDir, dbDir].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ── Multer — ürün görseli ──────────────────────────────
 const productStorage = multer.diskStorage({
@@ -87,6 +83,7 @@ db.exec(`
     badge       TEXT    DEFAULT '',
     pack_qty    INTEGER DEFAULT 1,
     min_qty     INTEGER DEFAULT 1,
+    stock_qty   INTEGER DEFAULT -1,
     active      INTEGER DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -112,7 +109,7 @@ db.exec(`
 `);
 
 // Kolon migration (eski DB'ler için)
-['image TEXT DEFAULT ""','sku TEXT DEFAULT ""','brand TEXT DEFAULT ""','pack_qty INTEGER DEFAULT 1','min_qty INTEGER DEFAULT 1'].forEach(col => {
+['image TEXT DEFAULT \'\'','sku TEXT DEFAULT \'\'','brand TEXT DEFAULT \'\'','pack_qty INTEGER DEFAULT 1','min_qty INTEGER DEFAULT 1','stock_qty INTEGER DEFAULT -1'].forEach(col => {
   try { db.exec(`ALTER TABLE products ADD COLUMN ${col}`); } catch {}
 });
 
@@ -239,11 +236,11 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', adminMiddleware, (req, res) => {
-  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty } = req.body;
+  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty, stock_qty } = req.body;
   if (!name||!price) return res.status(400).json({ error: 'Ürün adı ve fiyat zorunlu.' });
   const result = db.prepare(
-    'INSERT INTO products (sku,brand,name,category,description,price,icon,image,specs,badge,pack_qty,min_qty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
-  ).run(sku||'', brand||'', name, category||'Genel', description||'', price, icon||'📦', image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1);
+    'INSERT INTO products (sku,brand,name,category,description,price,icon,image,specs,badge,pack_qty,min_qty,stock_qty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  ).run(sku||'', brand||'', name, category||'Genel', description||'', price, icon||'📦', image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1, stock_qty!==undefined?stock_qty:-1);
   const p = db.prepare('SELECT * FROM products WHERE id=?').get(result.lastInsertRowid);
   res.json({ ...p, specs: JSON.parse(p.specs) });
 });
@@ -251,8 +248,8 @@ app.post('/api/products', adminMiddleware, (req, res) => {
 app.put('/api/products/:id', adminMiddleware, (req, res) => {
   const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty } = req.body;
   db.prepare(
-    'UPDATE products SET sku=?,brand=?,name=?,category=?,description=?,price=?,icon=?,image=?,specs=?,badge=?,pack_qty=?,min_qty=? WHERE id=?'
-  ).run(sku||'', brand||'', name, category, description, price, icon, image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1, req.params.id);
+    'UPDATE products SET sku=?,brand=?,name=?,category=?,description=?,price=?,icon=?,image=?,specs=?,badge=?,pack_qty=?,min_qty=?,stock_qty=? WHERE id=?'
+  ).run(sku||'', brand||'', name, category, description, price, icon, image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1, stock_qty!==undefined?stock_qty:-1, req.params.id);
   const p = db.prepare('SELECT * FROM products WHERE id=?').get(req.params.id);
   res.json({ ...p, specs: JSON.parse(p.specs) });
 });
@@ -327,13 +324,29 @@ app.get('/api/users', adminMiddleware, (req, res) => {
   res.json(db.prepare('SELECT id,name,email,phone,role,created_at FROM users ORDER BY created_at DESC').all());
 });
 
-// ── Hata Yakalama (Global Error Handler) ───────────────
-app.use((err, req, res, next) => {
-  console.error('❌ Hata:', err.message);
-  const status = err.status || 500;
-  res.status(status).json({
-    error: err.message || 'Sunucu hatası oluştu.'
+// ── Bulk import ───────────────────────────────────────
+app.post('/api/products/bulk-import', adminMiddleware, (req, res) => {
+  const { products } = req.body;
+  if (!products || !Array.isArray(products)) return res.status(400).json({ error: 'Geçersiz veri.' });
+  const stmt = db.prepare(
+    'INSERT INTO products (sku,brand,name,category,description,price,icon,image,specs,badge,pack_qty,min_qty,stock_qty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+  );
+  let ok=0, fail=0;
+  const insertMany = db.transaction((rows) => {
+    for (const p of rows) {
+      try {
+        stmt.run(
+          p.sku||'', p.brand||'', p.name||'', p.category||'Genel',
+          p.description||'', parseFloat(p.price)||0, p.icon||'📦', '',
+          JSON.stringify([]), p.badge||'', parseInt(p.pack_qty)||1,
+          parseInt(p.min_qty)||1, parseInt(p.stock_qty)||(-1)
+        );
+        ok++;
+      } catch { fail++; }
+    }
   });
+  insertMany(products);
+  res.json({ ok, fail });
 });
 
 // ── SPA fallback ───────────────────────────────────────
