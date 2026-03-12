@@ -85,14 +85,15 @@ nav{background:rgba(255,255,255,.92);backdrop-filter:blur(20px);border-bottom:1p
 .search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px}
 
 /* ── PRODUCTS GRID ── */
-.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:1100px){.products-grid{grid-template-columns:repeat(2,1fr);gap:18px}}
 @media(max-width:640px){.products-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
 @media(max-width:400px){.products-grid{grid-template-columns:1fr}}
 
 .product-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;transition:all .25s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-card);cursor:pointer;position:relative}
 .product-card:hover{transform:translateY(-5px);box-shadow:0 20px 60px rgba(0,0,0,.13);border-color:rgba(37,99,235,.15)}
 
-.product-img{width:100%;height:200px;background:#ffffff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:64px;position:relative;overflow:hidden}
+.product-img{width:100%;height:240px;background:#ffffff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:72px;position:relative;overflow:hidden}
 .product-img img{width:100%;height:100%;object-fit:contain;transition:transform .4s ease;padding:8px;background:#fff}
 .product-card:hover .product-img img{transform:scale(1.04)}
 .product-badge{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:50px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;backdrop-filter:blur(8px)}
@@ -391,11 +392,11 @@ textarea.form-control{resize:vertical;min-height:80px}
           <div class="form-row">
             <div class="form-group"><label>Ürün Adı</label><input class="form-control" id="prod-name" placeholder="MacBook Pro M3"></div>
             <div class="form-group"><label>Kategori</label>
-              <select class="form-control" id="prod-cat">
-                <option>Laptop</option><option>Telefon</option><option>Tablet</option>
-                <option>Aksesuar</option><option>Yazıcı</option><option>Monitör</option>
-                <option>Ağ Ekipmanı</option><option>Depolama</option>
-              </select>
+              <div style="display:flex;gap:6px">
+                <select class="form-control" id="prod-cat" style="flex:1"></select>
+                <button type="button" class="btn btn-edit btn-sm" onclick="addCategory()" title="Yeni kategori ekle" style="flex-shrink:0;padding:0 12px;font-size:18px">+</button>
+                <button type="button" class="btn btn-sm" onclick="deleteCategory()" title="Kategoriyi sil" style="flex-shrink:0;padding:0 12px;font-size:16px;background:#fef2f2;color:var(--danger);border:1px solid rgba(220,38,38,.2)">🗑</button>
+              </div>
             </div>
           </div>
           <div class="form-group"><label>Açıklama</label><input class="form-control" id="prod-desc" placeholder="Kısa açıklama"></div>
@@ -722,22 +723,23 @@ function openProductDetail(pid){
     :`<button onclick="closeModal();openAuth('login')" style="display:flex;align-items:center;gap:6px;background:var(--accent-light);border:1px dashed var(--accent);border-radius:10px;padding:10px 16px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;color:var(--accent);font-weight:600">🔒 Fiyatı görmek için giriş yapın</button>`;
   const addBtnHtml=currentUser?`<button class="add-btn ${inCart?'added':''}" id="detail-add-btn" onclick="addToCart(${p.id});updateDetailBtn(${p.id})" style="padding:12px 24px;font-size:14px;border-radius:10px">${inCart?'✓ Listede':'+ Listeye Ekle'}</button>`:'';
   openModal('',`
-    <div style="display:flex;gap:24px;flex-wrap:wrap">
-      <div style="width:180px;height:180px;min-width:160px;background:linear-gradient(135deg,var(--surface2),#e8effe);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:72px;flex-shrink:0;overflow:hidden">${imgHtml}</div>
-      <div style="flex:1;min-width:180px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-          <span style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.8px">${p.category}</span>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="width:100%;height:300px;background:#f8f9fc;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:22px;border:1px solid var(--border)">${imgHtml}</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">${p.category}</span>
           ${p.brand?`<span style="font-size:11px;font-weight:600;color:var(--text2)">· ${p.brand}</span>`:''}
-          ${p.sku?`<span style="font-size:10px;color:var(--text3);font-family:monospace;background:var(--surface2);padding:2px 6px;border-radius:4px">${p.sku}</span>`:''}
+          ${p.sku?`<span style="font-size:10px;color:var(--text3);font-family:monospace;background:var(--surface2);padding:3px 8px;border-radius:6px;border:1px solid var(--border)">${p.sku}</span>`:''}
+          ${badge}
         </div>
-        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:var(--text);line-height:1.2;margin-bottom:8px">${p.name}${badge}</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px">${p.description||''}</div>
-        ${specs.length?`<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Özellikler</div><div style="display:flex;gap:6px;flex-wrap:wrap">${specs.map(s=>`<span style="padding:4px 12px;background:var(--surface2);border-radius:50px;font-size:12px;color:var(--text2);font-weight:500;border:1px solid var(--border)">${s}</span>`).join('')}</div></div>`:''}
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-          ${(p.pack_qty||1)>1?`<span style="font-size:12px;background:#f0fff4;color:var(--success);padding:3px 10px;border-radius:50px;font-weight:600">📦 Pakette ${p.pack_qty} adet</span>`:''}
-          ${(p.min_qty||1)>1?`<span style="font-size:12px;background:#fff8e6;color:var(--warning);padding:3px 10px;border-radius:50px;font-weight:600">⚠️ Min. ${p.min_qty} adet sipariş</span>`:''}
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:var(--text);line-height:1.2;margin-bottom:10px;letter-spacing:-.4px">${p.name}</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:18px">${p.description||''}</div>
+        ${specs.length?`<div style="margin-bottom:18px"><div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Özellikler</div><div style="display:flex;gap:6px;flex-wrap:wrap">${specs.map(s=>`<span style="padding:5px 14px;background:var(--surface2);border-radius:50px;font-size:12px;color:var(--text2);font-weight:500;border:1px solid var(--border)">${s}</span>`).join('')}</div></div>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+          ${(p.pack_qty||1)>1?`<span style="font-size:12px;background:#f0fdf4;color:var(--success);padding:5px 14px;border-radius:50px;font-weight:600;border:1px solid rgba(22,163,74,.2)">📦 Pakette ${p.pack_qty} adet</span>`:''}
+          ${(p.min_qty||1)>1?`<span style="font-size:12px;background:#fffbeb;color:var(--warning);padding:5px 14px;border-radius:50px;font-weight:600;border:1px solid rgba(217,119,6,.2)">⚠️ Min. ${p.min_qty} adet sipariş</span>`:''}
         </div>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)">${priceHtml}${addBtnHtml}</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--border)">${priceHtml}${addBtnHtml}</div>
       </div>
     </div>`,
     [{label:'Kapat',cls:'btn-ghost',action:'closeModal()'}]
@@ -951,7 +953,7 @@ function switchAdminTab(tab){
     $('admin-section-'+t).style.display=t===tab?'block':'none';
     const el=$('admin-tab-'+t); if(el) el.classList.toggle('active',t===tab);
   });
-  if(tab==='products') loadProductsSection();
+  if(tab==='products'){ loadProductsSection(); setTimeout(()=>fillCatSelect('prod-cat'),300); }
   if(tab==='users') loadUsersTable();
   if(tab==='lists') loadAdminLists();
   if(tab==='reports') loadReports();
@@ -1043,8 +1045,63 @@ async function approveList(id){
   catch(e){toast('Hata: '+e.message)}
 }
 
+// Varsayılan kategoriler
+const DEFAULT_CATS = ['Laptop','Telefon','Tablet','Aksesuar','Yazıcı','Monitör','Ağ Ekipmanı','Depolama'];
+
+function getCategoryList(products){
+  const saved = JSON.parse(localStorage.getItem('extra_cats')||'[]');
+  const fromProducts = products.map(p=>p.category);
+  return [...new Set([...DEFAULT_CATS,...saved,...fromProducts])].filter(Boolean).sort();
+}
+
+function fillCatSelect(selectId, selectedVal=''){
+  const sel = $(selectId); if(!sel) return;
+  const cats = getCategoryList(window._allAdminProducts||[]);
+  sel.innerHTML = cats.map(c=>`<option value="${c}" ${c===selectedVal?'selected':''}>${c}</option>`).join('');
+}
+
+function addCategoryEp(){
+  const name = prompt('Yeni kategori adı:');
+  if(!name||!name.trim()) return;
+  const saved = JSON.parse(localStorage.getItem('extra_cats')||'[]');
+  if(!saved.includes(name.trim())){
+    saved.push(name.trim());
+    localStorage.setItem('extra_cats', JSON.stringify(saved));
+  }
+  const sel=$('ep-cat');
+  if(sel){ const opt=document.createElement('option'); opt.value=name.trim(); opt.textContent=name.trim(); opt.selected=true; sel.appendChild(opt); }
+  toast('Kategori eklendi: '+name.trim());
+}
+
+function addCategory(){
+  const name = prompt('Yeni kategori adı:');
+  if(!name||!name.trim()) return;
+  const saved = JSON.parse(localStorage.getItem('extra_cats')||'[]');
+  if(!saved.includes(name.trim())){
+    saved.push(name.trim());
+    localStorage.setItem('extra_cats', JSON.stringify(saved));
+  }
+  fillCatSelect('prod-cat', name.trim());
+  toast('Kategori eklendi: '+name.trim());
+}
+
+function deleteCategory(){
+  const sel = $('prod-cat');
+  const val = sel?.value;
+  if(!val) return;
+  const used = (window._allAdminProducts||[]).some(p=>p.category===val);
+  if(used){ toast('Bu kategori ürünlerde kullanılıyor, silinemez!'); return; }
+  if(!confirm(`"${val}" kategorisini silmek istiyor musunuz?`)) return;
+  const saved = JSON.parse(localStorage.getItem('extra_cats')||'[]');
+  localStorage.setItem('extra_cats', JSON.stringify(saved.filter(c=>c!==val)));
+  fillCatSelect('prod-cat');
+  toast('Kategori silindi');
+}
+
 async function loadProductsSection(){
   const products=await api('GET','/api/products');
+  window._allAdminProducts = products;
+  fillCatSelect('prod-cat');
   const cats=[...new Set(products.map(p=>p.category))];
   $('admin-cat-stats').innerHTML=`<div style="display:grid;gap:8px">${cats.map(cat=>{
     const n=products.filter(p=>p.category===cat).length;
@@ -1128,7 +1185,7 @@ function openEditProduct(id){
     </div>
     <div class="form-row">
       <div class="form-group"><label>Ürün Adı</label><input class="form-control" id="ep-name" value="${p.name}"></div>
-      <div class="form-group"><label>Kategori</label><select class="form-control" id="ep-cat">${cats.map(c=>`<option ${c===p.category?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Kategori</label><div style="display:flex;gap:6px"><select class="form-control" id="ep-cat" style="flex:1">${cats.map(c=>`<option value="${c}" ${c===p.category?'selected':''}>${c}</option>`).join('')}</select><button type="button" class="btn btn-edit btn-sm" onclick="addCategoryEp()" style="flex-shrink:0;padding:0 12px;font-size:18px">+</button></div></div>
     </div>
     <div class="form-group"><label>Açıklama</label><input class="form-control" id="ep-desc" value="${(p.description||'').replace(/"/g,'&quot;')}"></div>
     <div class="form-row">
