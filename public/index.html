@@ -92,8 +92,8 @@ nav{background:rgba(255,255,255,.92);backdrop-filter:blur(20px);border-bottom:1p
 .product-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;transition:all .25s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-card);cursor:pointer;position:relative}
 .product-card:hover{transform:translateY(-5px);box-shadow:0 20px 60px rgba(0,0,0,.13);border-color:rgba(37,99,235,.15)}
 
-.product-img{width:100%;height:200px;background:linear-gradient(145deg,#f0f4ff,#e8f0fe);display:flex;align-items:center;justify-content:center;font-size:64px;position:relative;overflow:hidden}
-.product-img img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}
+.product-img{width:100%;height:200px;background:#ffffff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:64px;position:relative;overflow:hidden}
+.product-img img{width:100%;height:100%;object-fit:contain;transition:transform .4s ease;padding:8px;background:#fff}
 .product-card:hover .product-img img{transform:scale(1.04)}
 .product-badge{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:50px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;backdrop-filter:blur(8px)}
 .badge-new{background:rgba(37,99,235,.12);color:var(--accent);border:1px solid rgba(37,99,235,.2)}
@@ -688,7 +688,7 @@ function filterProducts(){
   grid.innerHTML=filtered.map(p=>{
     const inCart=cart.find(i=>i.id===p.id);
     const badge=p.badge&&bmap[p.badge]?`<span class="product-badge ${bmap[p.badge][0]}">${bmap[p.badge][1]}</span>`:'';
-    const imgHtml=p.image?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:52px">${p.icon||'📦'}</span>`;
+    const imgHtml=p.image?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain;padding:8px;background:#fff">`:`<span style="font-size:52px">${p.icon||'📦'}</span>`;
     const price=currentUser
       ?`<span class="product-price">₺${Number(p.price).toLocaleString('tr-TR')}</span>`
       :`<button onclick="openAuth('login')" class="price-lock">🔒 Fiyatı Gör</button>`;
@@ -715,7 +715,7 @@ function openProductDetail(pid){
   const badge=p.badge&&bmap[p.badge]?`<span class="status ${p.badge==='new'?'status-approved':p.badge==='hot'?'status-pending':'status-rejected'}" style="margin-left:8px">${bmap[p.badge][1]}</span>`:'';
   const inCart=cart.find(i=>i.id===p.id);
   const imgHtml=p.image
-    ?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`
+    ?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain;padding:12px;background:#f8f9fc;border-radius:12px">`
     :`<span style="font-size:72px">${p.icon||'📦'}</span>`;
   const priceHtml=currentUser
     ?`<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--text)">₺${Number(p.price).toLocaleString('tr-TR')}</span>`
