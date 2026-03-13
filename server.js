@@ -128,7 +128,7 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
   );
-\`);
+`);
 
 // Kolon migration (eski DB'ler için)
 // product_images & user_prices tabloları yukarıda CREATE IF NOT EXISTS ile oluşturuluyor
