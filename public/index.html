@@ -1324,9 +1324,9 @@ async function refreshRates(){
     $('rate-eur').value=data.rates.EUR;
     $('rate-gbp').value=data.rates.GBP;
     $('rates-updated').textContent='Son güncelleme: '+new Date(data.updated_at).toLocaleString('tr-TR');
-    toast('Kurlar TCMB'den güncellendi ✓');
+    toast('Kurlar TCMB\'den güncellendi ✓');
   }catch(e){toast('TCMB hatası: '+e.message)}
-  btn.textContent='🔄 TCMB'den Çek';btn.disabled=false;
+  btn.textContent='🔄 TCMB\'den Çek';btn.disabled=false;
 }
 
 // ── DASHBOARD ─────────────────────────────────────────
