@@ -210,7 +210,7 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ error: 'Bu e-posta zaten kayıtlı.' });
   const hash = bcrypt.hashSync(password, 10);
   const result = db.prepare('INSERT INTO users (name,email,password,phone) VALUES (?,?,?,?)').run(name,email,hash,phone||'');
-  const user = db.prepare('SELECT id,name,email,phone,role FROM users WHERE id=?').get(result.lastInsertRowid);
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier FROM users WHERE id=?').get(result.lastInsertRowid);
   const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, SECRET, { expiresIn:'30d' });
   res.json({ token, user });
 });
@@ -221,12 +221,13 @@ app.post('/api/auth/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'E-posta veya şifre hatalı.' });
   const token = jwt.sign({ id:user.id, email:user.email, role:user.role }, SECRET, { expiresIn:'30d' });
-  const { password:_, ...safeUser } = user;
-  res.json({ token, user: safeUser });
+  const fullUser = db.prepare('SELECT id,name,email,phone,role,price_tier FROM users WHERE id=?').get(user.id);
+  res.json({ token, user: fullUser });
 });
 
 app.get('/api/auth/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id,name,email,phone,role FROM users WHERE id=?').get(req.user.id);
+  try { db.exec("ALTER TABLE users ADD COLUMN price_tier TEXT DEFAULT 'retail'"); } catch {}
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier FROM users WHERE id=?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
   res.json(user);
 });
@@ -234,7 +235,7 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 app.put('/api/auth/profile', authMiddleware, (req, res) => {
   const { name, phone } = req.body;
   db.prepare('UPDATE users SET name=?, phone=? WHERE id=?').run(name, phone||'', req.user.id);
-  res.json(db.prepare('SELECT id,name,email,phone,role FROM users WHERE id=?').get(req.user.id));
+  res.json(db.prepare('SELECT id,name,email,phone,role,price_tier FROM users WHERE id=?').get(req.user.id));
 });
 
 // ════════════════════════════════════════════════════════
