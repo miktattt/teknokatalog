@@ -255,6 +255,12 @@ app.post('/api/products', adminMiddleware, (req, res) => {
   res.json({ ...p, specs: JSON.parse(p.specs) });
 });
 
+// Görsel yükleme — /:id'den ÖNCE
+app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
+  res.json({ url: '/uploads/' + req.file.filename });
+});
+
 app.put('/api/products/:id', adminMiddleware, (req, res) => {
   const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty } = req.body;
   db.prepare(
@@ -270,11 +276,6 @@ app.delete('/api/products/:id', adminMiddleware, (req, res) => {
 });
 
 // Görsel yükleme
-app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
-  res.json({ url: '/uploads/' + req.file.filename });
-});
-
 // ════════════════════════════════════════════════════════
 // LISTS
 // ════════════════════════════════════════════════════════
@@ -331,7 +332,62 @@ app.put('/api/lists/:id/reject', adminMiddleware, (req, res) => {
 });
 
 app.get('/api/users', adminMiddleware, (req, res) => {
-  res.json(db.prepare('SELECT id,name,email,phone,role,created_at FROM users ORDER BY created_at DESC').all());
+  try { db.exec("ALTER TABLE users ADD COLUMN price_tier TEXT DEFAULT 'retail'"); } catch {}
+  const users = db.prepare(`
+    SELECT u.id, u.name, u.email, u.phone, u.role, u.price_tier, u.created_at,
+           COUNT(l.id) as list_count
+    FROM users u
+    LEFT JOIN lists l ON l.user_id = u.id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `).all();
+  res.json(users);
+});
+
+app.post('/api/users', adminMiddleware, (req, res) => {
+  const { name, email, password, phone, price_tier } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ error: 'Ad, e-posta ve şifre zorunlu.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Şifre en az 6 karakter olmalı.' });
+  if (db.prepare('SELECT id FROM users WHERE email=?').get(email))
+    return res.status(400).json({ error: 'Bu e-posta zaten kayıtlı.' });
+  const hash = bcrypt.hashSync(password, 10);
+  const result = db.prepare('INSERT INTO users (name,email,password,phone,role,price_tier) VALUES (?,?,?,?,?,?)')
+    .run(name, email, hash, phone||'', 'user', price_tier||'retail');
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users WHERE id=?').get(result.lastInsertRowid);
+  res.json(user);
+});
+
+app.put('/api/users/:id', adminMiddleware, (req, res) => {
+  const { name, email, phone, price_tier, password } = req.body;
+  if (!name || !email) return res.status(400).json({ error: 'Ad ve e-posta zorunlu.' });
+  const existing = db.prepare('SELECT id FROM users WHERE email=? AND id!=?').get(email, req.params.id);
+  if (existing) return res.status(400).json({ error: 'Bu e-posta başka bir kullanıcıya ait.' });
+  if (password) {
+    if (password.length < 6) return res.status(400).json({ error: 'Şifre en az 6 karakter olmalı.' });
+    const hash = bcrypt.hashSync(password, 10);
+    db.prepare('UPDATE users SET name=?,email=?,phone=?,price_tier=?,password=? WHERE id=?')
+      .run(name, email, phone||'', price_tier||'retail', hash, req.params.id);
+  } else {
+    db.prepare('UPDATE users SET name=?,email=?,phone=?,price_tier=? WHERE id=?')
+      .run(name, email, phone||'', price_tier||'retail', req.params.id);
+  }
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users WHERE id=?').get(req.params.id);
+  res.json(user);
+});
+
+app.put('/api/users/:id/tier', adminMiddleware, (req, res) => {
+  const { price_tier } = req.body;
+  db.prepare('UPDATE users SET price_tier=? WHERE id=?').run(price_tier||'retail', req.params.id);
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users WHERE id=?').get(req.params.id);
+  res.json(user);
+});
+
+app.delete('/api/users/:id', adminMiddleware, (req, res) => {
+  const user = db.prepare('SELECT id,role FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
+  if (user.role === 'admin') return res.status(403).json({ error: 'Admin silinemez.' });
+  db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
+  res.json({ success: true });
 });
 
 // ── Bulk import ───────────────────────────────────────
