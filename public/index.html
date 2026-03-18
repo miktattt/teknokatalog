@@ -701,6 +701,24 @@ function toTRY(price,currency){
   if(!currency||currency==='TRY') return price;
   return price*(exchangeRates[currency]||1);
 }
+function getProductPrice(p){
+  if(!currentUser) return {price:p.price,currency:p.currency||'TRY'};
+  const tier=currentUser.price_tier||'retail';
+  const mapped=tierMap[tier]||'price1';
+  if(mapped==='price2'&&p.price2!=null) return {price:p.price2,currency:p.currency2||p.currency||'TRY'};
+  return {price:p.price,currency:p.currency||'TRY'};
+}
+
+// Kullanıcının tier'ına göre doğru fiyatı döndür
+function getProductPrice(p){
+  if(!currentUser) return {price:p.price, currency:p.currency||'TRY'};
+  const tier = currentUser.price_tier||'retail';
+  const mapped = tierMap[tier]||'price1';
+  if(mapped==='price2' && p.price2!=null){
+    return {price:p.price2, currency:p.currency2||p.currency||'TRY'};
+  }
+  return {price:p.price, currency:p.currency||'TRY'};
+}
 function fmtPrice(price,currency,showBoth){
   const sym=CUR_SYMBOLS[currency]||'₺';
   const orig=sym+Number(price).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -818,8 +836,9 @@ function filterProducts(){
     const inCart=cart.find(i=>i.id===p.id);
     const badge=p.badge&&bmap[p.badge]?`<span class="product-badge ${bmap[p.badge][0]}">${bmap[p.badge][1]}</span>`:'';
     const imgHtml=p.image?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain;padding:8px;background:#fff">`:`<span style="font-size:52px">${p.icon||'📦'}</span>`;
+    const {price:pPrice,currency:pCur}=getProductPrice(p);
     const price=currentUser
-      ?`<span class="product-price">${fmtPrice(p.price,p.currency,true)}</span>`
+      ?`<span class="product-price">${fmtPrice(pPrice,pCur,true)}</span>`
       :`<button onclick="openAuth('login')" class="price-lock">🔒 Fiyatı Gör</button>`;
     const outOfStock=p.stock_qty===0;
     const stockLabel=p.stock_qty>0?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(22,163,74,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">${p.stock_qty} adet</span>`:p.stock_qty===0?'<span style="position:absolute;bottom:8px;right:8px;background:rgba(220,38,38,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Stokta Yok</span>':'';
@@ -854,8 +873,9 @@ function openProductDetail(pid){
       ${imgs.length>1?'<div class="gallery-arrow gallery-prev" onclick="galleryStep(-1)">‹</div><div class="gallery-arrow gallery-next" onclick="galleryStep(1)">›</div>':''}
     </div>`
     :`<div class="gallery-wrap"><div class="gallery-emoji"><span>${p.icon||'📦'}</span></div></div>`;
+  const {price:dPrice,currency:dCur}=getProductPrice(p);
   const priceHtml=currentUser
-    ?`<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--text)">${fmtPrice(p.price,p.currency,true)}</span>`
+    ?`<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--text)">${fmtPrice(dPrice,dCur,true)}</span>`
     :`<button onclick="closeModal();openAuth('login')" style="display:flex;align-items:center;gap:6px;background:var(--accent-light);border:1px dashed var(--accent);border-radius:10px;padding:10px 16px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;color:var(--accent);font-weight:600">🔒 Fiyatı görmek için giriş yapın</button>`;
   const addBtnHtml=currentUser?`<button class="add-btn ${inCart?'added':''}" id="detail-add-btn" onclick="addToCart(${p.id});updateDetailBtn(${p.id})" style="padding:12px 24px;font-size:14px;border-radius:10px">${inCart?'✓ Listede':'+ Listeye Ekle'}</button>`:'';
   openModal('',`
@@ -894,8 +914,9 @@ function addToCart(pid){
   const p=allProducts.find(pr=>pr.id===pid); if(!p) return;
   const minQty = p.min_qty||1;
   const ex=cart.find(i=>i.id===pid);
+  const {price:cPrice,currency:cCur}=getProductPrice(p);
   if(ex) ex.qty = Math.max(ex.qty+minQty, minQty);
-  else cart.push({id:p.id,sku:p.sku||'',brand:p.brand||'',name:p.name,icon:p.icon||'📦',image:p.image||'',price:p.price,currency:p.currency||'TRY',price_try:toTRY(p.price,p.currency||'TRY'),qty:minQty,pack_qty:p.pack_qty||1,min_qty:minQty});
+  else cart.push({id:p.id,sku:p.sku||'',brand:p.brand||'',name:p.name,icon:p.icon||'📦',image:p.image||'',price:cPrice,currency:cCur,price_try:toTRY(cPrice,cCur),qty:minQty,pack_qty:p.pack_qty||1,min_qty:minQty});
   updateFab(); renderPanel(); filterProducts();
   toast(`${p.name} listeye eklendi ✓`);
 }
@@ -1947,10 +1968,7 @@ async function loadUsersTable(){
   try{
     const users=await api('GET','/api/users');
     const filtered=users.filter(u=>u.role!=='admin');
-    if(!filtered.length){
-      $('users-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Henüz kayıtlı müşteri yok</td></tr>';
-      return;
-    }
+    if(!filtered.length){$('users-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Henüz kayıtlı müşteri yok</td></tr>';return;}
     $('users-tbody').innerHTML=filtered.map(u=>{
       const tier=u.price_tier||'retail';
       const tierOpts=priceTiers.map(t=>`<option value="${t.id}" ${t.id===tier?'selected':''}>${t.label}</option>`).join('');
@@ -1958,11 +1976,7 @@ async function loadUsersTable(){
         <td><strong style="font-size:13px">${u.name}</strong><div style="font-size:11px;color:var(--text3)">${u.email}</div></td>
         <td style="color:var(--text3);font-size:12px">${u.email}</td>
         <td style="font-size:12px">${u.phone||'—'}</td>
-        <td>
-          <select class="form-control" style="font-size:12px;padding:4px 8px;width:auto;border-radius:20px;font-weight:600;color:${getTierColor(tier)};border-color:${getTierColor(tier)}" onchange="setUserTier(${u.id},this.value,this)">
-            ${tierOpts}
-          </select>
-        </td>
+        <td><select class="form-control" style="font-size:12px;padding:4px 8px;width:auto;border-radius:20px;font-weight:600;color:${getTierColor(tier)};border-color:${getTierColor(tier)}" onchange="setUserTier(${u.id},this.value,this)">${tierOpts}</select></td>
         <td><span style="background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:50px;font-size:12px;font-weight:600">${u.list_count||0}</span></td>
         <td style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString('tr-TR')}</td>
         <td style="white-space:nowrap">
@@ -1973,81 +1987,31 @@ async function loadUsersTable(){
     }).join('');
   }catch(e){toast('Hata: '+e.message)}
 }
-
-async function setUserTier(userId, tier, selectEl){
-  try{
-    await api('PUT',`/api/users/${userId}/tier`,{price_tier:tier});
-    selectEl.style.color=getTierColor(tier);
-    selectEl.style.borderColor=getTierColor(tier);
-    toast('Etiket güncellendi ✓');
-  }catch(e){toast('Hata: '+e.message)}
+async function setUserTier(userId,tier,selectEl){
+  try{await api('PUT',`/api/users/${userId}/tier`,{price_tier:tier});selectEl.style.color=getTierColor(tier);selectEl.style.borderColor=getTierColor(tier);toast('Etiket güncellendi ✓');}catch(e){toast('Hata: '+e.message)}
 }
-
 function openAddUserModal(){
   const tierOpts=priceTiers.map(t=>`<option value="${t.id}">${t.label}</option>`).join('');
-  openModal('👤 Yeni Müşteri Ekle',`
-    <div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" placeholder="Ad Soyad"></div>
-    <div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" placeholder="ornek@mail.com"></div>
-    <div class="form-group"><label>Şifre *</label><input class="form-control" id="um-password" type="password" placeholder="En az 6 karakter"></div>
-    <div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" placeholder="05xx xxx xx xx"></div>
-    <div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>
-  `,[
-    {label:'Kaydet',cls:'btn-primary',action:'saveNewUser()'},
-    {label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}
-  ]);
+  openModal('👤 Yeni Müşteri Ekle',`<div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" placeholder="Ad Soyad"></div><div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" placeholder="ornek@mail.com"></div><div class="form-group"><label>Şifre *</label><input class="form-control" id="um-password" type="password" placeholder="En az 6 karakter"></div><div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" placeholder="05xx xxx xx xx"></div><div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>`,[{label:'Kaydet',cls:'btn-primary',action:'saveNewUser()'},{label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}]);
 }
-
 async function saveNewUser(){
-  const name=$('um-name').value.trim();
-  const email=$('um-email').value.trim();
-  const password=$('um-password').value;
-  const phone=$('um-phone').value.trim();
-  const price_tier=$('um-tier').value;
+  const name=$('um-name').value.trim(),email=$('um-email').value.trim(),password=$('um-password').value,phone=$('um-phone').value.trim(),price_tier=$('um-tier').value;
   if(!name||!email||!password){toast('Ad, e-posta ve şifre zorunlu.');return;}
-  try{
-    await api('POST','/api/users',{name,email,password,phone,price_tier});
-    closeModal();loadUsersTable();
-    toast('Müşteri eklendi ✓');
-  }catch(e){toast('Hata: '+e.message)}
+  try{await api('POST','/api/users',{name,email,password,phone,price_tier});closeModal();loadUsersTable();toast('Müşteri eklendi ✓');}catch(e){toast('Hata: '+e.message)}
 }
-
 function openEditUserModal(id,name,email,phone,tier){
   const tierOpts=priceTiers.map(t=>`<option value="${t.id}" ${t.id===tier?'selected':''}>${t.label}</option>`).join('');
-  openModal('✏️ Müşteriyi Düzenle',`
-    <div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" value="${name.replace(/"/g,'&quot;')}" placeholder="Ad Soyad"></div>
-    <div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" value="${email}" placeholder="ornek@mail.com"></div>
-    <div class="form-group"><label>Yeni Şifre <span style="font-weight:400;color:var(--text3)">(boş bırakılırsa değişmez)</span></label><input class="form-control" id="um-password" type="password" placeholder="Değiştirmek için yazın"></div>
-    <div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" value="${phone}" placeholder="05xx xxx xx xx"></div>
-    <div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>
-  `,[
-    {label:'Kaydet',cls:'btn-primary',action:'saveEditUser('+id+')'},
-    {label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}
-  ]);
+  openModal('✏️ Müşteriyi Düzenle',`<div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" value="${name.replace(/"/g,'&quot;')}"></div><div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" value="${email}"></div><div class="form-group"><label>Yeni Şifre <span style="font-weight:400;color:var(--text3)">(boş = değişmez)</span></label><input class="form-control" id="um-password" type="password"></div><div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" value="${phone}"></div><div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>`,[{label:'Kaydet',cls:'btn-primary',action:'saveEditUser('+id+')'},{label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}]);
 }
-
 async function saveEditUser(id){
-  const name=$('um-name').value.trim();
-  const email=$('um-email').value.trim();
-  const password=$('um-password').value;
-  const phone=$('um-phone').value.trim();
-  const price_tier=$('um-tier').value;
+  const name=$('um-name').value.trim(),email=$('um-email').value.trim(),password=$('um-password').value,phone=$('um-phone').value.trim(),price_tier=$('um-tier').value;
   if(!name||!email){toast('Ad ve e-posta zorunlu.');return;}
-  const body={name,email,phone,price_tier};
-  if(password) body.password=password;
-  try{
-    await api('PUT',`/api/users/${id}`,body);
-    closeModal();loadUsersTable();
-    toast('Müşteri güncellendi ✓');
-  }catch(e){toast('Hata: '+e.message)}
+  const body={name,email,phone,price_tier};if(password) body.password=password;
+  try{await api('PUT',`/api/users/${id}`,body);closeModal();loadUsersTable();toast('Müşteri güncellendi ✓');}catch(e){toast('Hata: '+e.message)}
 }
-
 async function deleteUser(id,name){
   if(!confirm(`"${name}" adlı müşteriyi silmek istediğinize emin misiniz?`)) return;
-  try{
-    await api('DELETE',`/api/users/${id}`);
-    loadUsersTable();
-    toast('Müşteri silindi ✓');
-  }catch(e){toast('Hata: '+e.message)}
+  try{await api('DELETE',`/api/users/${id}`);loadUsersTable();toast('Müşteri silindi ✓');}catch(e){toast('Hata: '+e.message)}
 }
 
 // ── SETTINGS ──────────────────────────────────────────
