@@ -321,7 +321,17 @@ app.put('/api/lists/:id/reject', adminMiddleware, (req, res) => {
 });
 
 app.get('/api/users', adminMiddleware, (req, res) => {
-  res.json(db.prepare('SELECT id,name,email,phone,role,created_at FROM users ORDER BY created_at DESC').all());
+  res.json(db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users ORDER BY created_at DESC').all());
+});
+
+app.put('/api/users/:id/tier', adminMiddleware, (req, res) => {
+  const { price_tier } = req.body;
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN price_tier TEXT DEFAULT 'retail'");
+  } catch {}
+  db.prepare('UPDATE users SET price_tier=? WHERE id=?').run(price_tier||'retail', req.params.id);
+  const user = db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users WHERE id=?').get(req.params.id);
+  res.json(user);
 });
 
 // ── Bulk import ───────────────────────────────────────
