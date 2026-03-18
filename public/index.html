@@ -708,6 +708,13 @@ function getProductPrice(p){
   if(mapped==='price2'&&p.price2!=null) return {price:p.price2,currency:p.currency2||p.currency||'TRY'};
   return {price:p.price,currency:p.currency||'TRY'};
 }
+function getProductPrice(p){
+  if(!currentUser) return {price:p.price,currency:p.currency||'TRY'};
+  const tier=currentUser.price_tier||'retail';
+  const mapped=tierMap[tier]||'price1';
+  if(mapped==='price2'&&p.price2!=null) return {price:p.price2,currency:p.currency2||p.currency||'TRY'};
+  return {price:p.price,currency:p.currency||'TRY'};
+}
 
 // Kullanıcının tier'ına göre doğru fiyatı döndür
 function getProductPrice(p){
@@ -2038,13 +2045,20 @@ async function viewList(id,context){
   const endpoint=context==='admin'?'/api/lists':'/api/lists/my';
   const lists=await api('GET',endpoint);
   const list=lists.find(l=>l.id===id); if(!list) return;
-  const itemsHtml=list.items.map(i=>`
-    <div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
+  const itemsHtml=list.items.map(i=>{
+    const iCur=i.currency||'TRY';
+    const iSym=CUR_SYMBOLS[iCur]||'₺';
+    const iTRY=i.price_try||toTRY(i.price,iCur);
+    const priceLabel=iCur!=='TRY'
+      ?`<span style="font-size:11px;color:var(--text3)">${iSym}${Number(i.price*i.qty).toLocaleString('tr-TR')}</span> <strong style="color:var(--accent)">≈₺${Math.round(iTRY*i.qty).toLocaleString('tr-TR')}</strong>`
+      :`<strong style="color:var(--accent)">₺${Math.round(iTRY*i.qty).toLocaleString('tr-TR')}</strong>`;
+    return `<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
       <span style="font-size:18px;margin-right:10px">${i.icon||'📦'}</span>
       <span style="flex:1;font-weight:500;font-size:13px">${i.name}</span>
       <span style="color:var(--text3);margin:0 10px;font-size:12px">×${i.qty}</span>
-      <span style="font-weight:700;color:var(--accent);font-size:13px">₺${(i.price*i.qty).toLocaleString('tr-TR')}</span>
-    </div>`).join('');
+      <span style="font-size:13px">${priceLabel}</span>
+    </div>`;
+  }).join('');
   const btns=[];
   if(context==='admin'&&list.status==='pending'){btns.push({label:'Onayla',cls:'btn-success',action:`closeModal();approveList(${id})`});btns.push({label:'Reddet',cls:'btn-danger',action:`closeModal();rejectList(${id})`});}
   btns.push({label:'Kapat',cls:'btn-ghost',action:'closeModal()'});
