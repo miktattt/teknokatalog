@@ -213,6 +213,16 @@ textarea.form-control{resize:vertical;min-height:80px}
 .welcome-banner p{opacity:.75;font-size:14px;margin-top:5px}
 
 /* ── MODAL ── */
+.gallery-wrap{position:relative;width:100%;height:300px;background:#f8f9fc;border-radius:14px;overflow:hidden;border:1px solid var(--border);margin-bottom:22px}
+.gallery-img{width:100%;height:100%;object-fit:contain;display:none;padding:8px}
+.gallery-img.active{display:block}
+.gallery-emoji{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px}
+.gallery-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+.gallery-dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.2);cursor:pointer;transition:all .2s}
+.gallery-dot.active{background:var(--accent);width:20px;border-radius:4px}
+.gallery-arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.9);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .15s;z-index:2}
+.gallery-arrow:hover{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.gallery-prev{left:10px}.gallery-next{right:10px}
 #modal-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}
 #modal-overlay.open{display:flex}
 .modal{background:var(--surface);border-radius:22px;padding:30px;width:660px;max-width:100%;box-shadow:0 32px 80px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto}
@@ -262,7 +272,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 <!-- AUTH -->
 <div id="auth-overlay">
   <div class="auth-card">
-    <div class="auth-logo" id="auth-logo-text">TeknoKatalog</div>
+    <div class="auth-logo" id="auth-logo-text">Tekno<span>Katalog</span></div>
     <div class="auth-subtitle">Profesyonel ürün kataloğu sistemi</div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('login')">Giriş Yap</button>
@@ -287,7 +297,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 <!-- NAV -->
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo" id="nav-logo"><span>TeknoKatalog</span></div>
+    <div class="nav-logo" id="nav-logo">Tekno<span>Katalog</span></div>
     <div class="nav-center" id="nav-tabs">
       <button class="nav-tab active" onclick="showPage('catalog')">📦 Katalog</button>
       <button class="nav-tab" id="tab-customer" style="display:none" onclick="showPage('customer')">📋 Listelerim</button>
@@ -368,15 +378,25 @@ textarea.form-control{resize:vertical;min-height:80px}
     </div>
     <!-- Admin inner tabs -->
     <div class="inner-tabs">
-      <button class="nav-tab active" id="admin-tab-lists"    onclick="switchAdminTab('lists')">📋 Listeler</button>
+      <button class="nav-tab active" id="admin-tab-dashboard" onclick="switchAdminTab('dashboard')">🏠 Dashboard</button>
+      <button class="nav-tab" id="admin-tab-lists"    onclick="switchAdminTab('lists')">📋 Listeler</button>
       <button class="nav-tab"        id="admin-tab-products" onclick="switchAdminTab('products')">📦 Ürünler</button>
       <button class="nav-tab"        id="admin-tab-users"    onclick="switchAdminTab('users')">👥 Müşteriler</button>
       <button class="nav-tab"        id="admin-tab-reports"  onclick="switchAdminTab('reports')">📊 Raporlar</button>
       <button class="nav-tab"        id="admin-tab-settings" onclick="switchAdminTab('settings')">🔧 Ayarlar</button>
     </div>
 
+    <!-- Dashboard -->
+    <div id="admin-section-dashboard" style="display:none">
+      <div class="stats-row" id="dash-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px"></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px">🕐 Son Listeler</div>
+        <div id="dash-recent-lists"></div>
+      </div>
+    </div>
+
     <!-- Lists -->
-    <div id="admin-section-lists">
+    <div id="admin-section-lists" style="display:none">
       <div class="card" style="padding:0;overflow:hidden"><div class="table-wrap"><div id="admin-lists-container"></div></div></div>
     </div>
 
@@ -401,7 +421,20 @@ textarea.form-control{resize:vertical;min-height:80px}
           </div>
           <div class="form-group"><label>Açıklama</label><input class="form-control" id="prod-desc" placeholder="Kısa açıklama"></div>
           <div class="form-row">
-            <div class="form-group"><label>Fiyat (₺)</label><input class="form-control" id="prod-price" type="number" placeholder="0"></div>
+            <div class="form-group">
+              <label id="prod-price1-label">Fiyat 1 (Perakende)</label>
+              <div style="display:flex;gap:6px">
+                <input class="form-control" id="prod-price" type="number" placeholder="0" style="flex:1">
+                <select class="form-control" id="prod-currency" style="width:90px"><option value="TRY">🇹🇷 TRY</option><option value="USD">🇺🇸 USD</option><option value="EUR">🇪🇺 EUR</option><option value="GBP">🇬🇧 GBP</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label id="prod-price2-label">Fiyat 2 (Toptan) <span style="font-weight:400;color:var(--text3)">(opsiyonel)</span></label>
+              <div style="display:flex;gap:6px">
+                <input class="form-control" id="prod-price2" type="number" placeholder="Boş = Fiyat 1 kullanılır" style="flex:1">
+                <select class="form-control" id="prod-currency2" style="width:90px"><option value="">Aynı</option><option value="TRY">🇹🇷 TRY</option><option value="USD">🇺🇸 USD</option><option value="EUR">🇪🇺 EUR</option><option value="GBP">🇬🇧 GBP</option></select>
+              </div>
+            </div>
             <div class="form-group"><label>Emoji İkon (görsel yoksa)</label><input class="form-control" id="prod-icon" placeholder="💻"></div>
           </div>
           <div class="form-row">
@@ -435,7 +468,7 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;gap:8px"><strong style="flex:1;font-size:14px">Tüm Ürünler</strong><button class="btn btn-edit btn-sm" onclick="exportProductsExcel()">Excel İndir</button><label class="btn btn-sm" style="background:#f0fdf4;color:var(--success);border:1px solid rgba(22,163,74,.2);cursor:pointer;margin:0">Excel Aktar<input type="file" id="import-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importProductsExcel(this)"></label><button class="btn btn-edit btn-sm" onclick="openBulkPriceModal()">Toplu Fiyat</button></div>
         <div class="table-wrap">
-          <table class="data-table"><thead><tr><th>Görsel</th><th>SKU</th><th>Ürün Adı / Marka</th><th>Kategori</th><th>Fiyat</th><th>Stok</th><th>Min/Paket</th><th>İşlem</th></tr></thead>
+          <table class="data-table"><thead><tr><th>Görsel</th><th>SKU</th><th>Ürün Adı / Marka</th><th>Kategori</th><th>Fiyat</th><th>Para Birimi</th><th>Stok</th><th>Min/Paket</th><th>İşlem</th></tr></thead>
           <tbody id="products-tbody"></tbody></table>
         </div>
       </div>
@@ -446,7 +479,7 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:16px 18px;border-bottom:1px solid var(--border)"><strong>👥 Kayıtlı Müşteriler</strong></div>
         <div class="table-wrap">
-          <table class="data-table"><thead><tr><th>Ad</th><th>E-posta</th><th>WhatsApp</th><th>Liste</th><th>Kayıt</th></tr></thead>
+          <table class="data-table"><thead><tr><th>Ad</th><th>E-posta</th><th>WhatsApp</th><th>Fiyat Etiketi</th><th>Liste</th><th>Kayıt</th></tr></thead>
           <tbody id="users-tbody"></tbody></table>
         </div>
       </div>
@@ -531,6 +564,69 @@ textarea.form-control{resize:vertical;min-height:80px}
             <button class="btn btn-primary" onclick="saveSetting('whatsapp_message',V('set-wa-msg'))">Kaydet</button>
           </div>
         </div>
+
+        <div class="setting-row">
+          <div><div class="setting-label">n8n Webhook URL</div><div class="setting-desc">Liste onaylandığında/reddedildiğinde bu adrese POST gönderilir</div></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="form-control" id="set-webhook" style="width:360px" placeholder="https://n8n.sirketiniz.com/webhook/...">
+            <button class="btn btn-primary" onclick="saveSetting('webhook_url',V('set-webhook'))">Kaydet</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Döviz Kurları -->
+      <div class="card">
+        <div class="card-title">💱 Döviz Kurları</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px" id="rates-updated">Hiç güncellenmedi</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:10px;align-items:end;flex-wrap:wrap">
+          <div class="form-group" style="margin:0">
+            <label>🇺🇸 USD/TRY</label>
+            <input class="form-control" id="rate-usd" type="number" step="0.01" placeholder="32.50">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>🇪🇺 EUR/TRY</label>
+            <input class="form-control" id="rate-eur" type="number" step="0.01" placeholder="35.00">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>🇬🇧 GBP/TRY</label>
+            <input class="form-control" id="rate-gbp" type="number" step="0.01" placeholder="41.00">
+          </div>
+          <button class="btn btn-primary" onclick="saveRates()" style="align-self:end">Kaydet</button>
+          <button class="btn btn-edit" onclick="refreshRates()" style="align-self:end">🔄 TCMB'den Çek</button>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text3)">
+          💡 Kurlar TCMB'den günlük çekilebilir. Dövizli ürünlerin TL karşılığı bu kurlarla hesaplanır.
+        </div>
+      </div>
+
+      <!-- Fiyat Tier Konfigürasyonu -->
+      <div class="card">
+        <div class="card-title">🏷️ Fiyat Etiketleri & Tier Ayarları</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Müşteri etiketlerini ve hangi etiketin hangi fiyatı göreceğini ayarlayın.</div>
+
+        <div id="tier-config-list" style="margin-bottom:16px"></div>
+
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <input class="form-control" id="new-tier-label" placeholder="Yeni etiket adı..." style="width:160px">
+          <input class="form-control" id="new-tier-color" type="color" value="#6366f1" style="width:50px;padding:4px">
+          <button class="btn btn-primary" onclick="addTier()">+ Etiket Ekle</button>
+        </div>
+
+        <div class="card-title" style="font-size:13px;margin-bottom:10px">Tier → Fiyat Bağlantısı</div>
+        <div id="tier-map-config" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary" onclick="saveTierConfig()">💾 Tier Ayarlarını Kaydet</button>
+      </div>
+
+      <!-- Müşteri Özel Fiyat -->
+      <div class="card">
+        <div class="card-title">👤 Müşteri Özel Fiyatlar</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:16px;flex-wrap:wrap">
+          <div class="form-group" style="margin:0"><label>Müşteri</label><select class="form-control" id="up-user-sel"></select></div>
+          <div class="form-group" style="margin:0"><label>Ürün</label><select class="form-control" id="up-prod-sel"></select></div>
+          <div class="form-group" style="margin:0"><label>Özel Fiyat (₺)</label><input class="form-control" id="up-price" type="number" placeholder="0"></div>
+          <button class="btn btn-primary" onclick="addUserPrice()">Ekle</button>
+        </div>
+        <div id="up-list"></div>
       </div>
     </div>
   </div>
@@ -554,6 +650,7 @@ textarea.form-control{resize:vertical;min-height:80px}
   <div class="panel-body" id="panel-body"></div>
   <div class="panel-footer" id="panel-footer" style="display:none">
     <div class="list-total"><span class="list-total-label">Toplam</span><span class="list-total-val" id="panel-total">₺0</span></div>
+    <textarea id="list-note-input" class="form-control" placeholder="Not ekle... (acil, fatura lazım, vb.)" rows="2" style="margin-bottom:10px;resize:none;font-size:13px"></textarea>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="send-btn send-wa" onclick="sendWhatsApp()" style="margin-bottom:0">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.09-1.34C8.46 21.53 10.19 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.68 0-3.25-.47-4.59-1.28l-.33-.19-3.02.79.81-2.96-.21-.35C3.53 14.97 3 13.53 3 12 3 7.03 7.03 3 12 3s9 4.03 9 9-4.03 9-9 9z"/></svg>
@@ -589,6 +686,25 @@ function hide(id){const e=$(id);if(e)e.style.display='none'}
 let currentUser=null, token=localStorage.getItem('tk_token')||null;
 let allProducts=[], cart=[], panelOpen=false, activeCat='Tümü';
 let editingListId=null, editItems=[], settings={};
+let exchangeRates={USD:32.5,EUR:35.0,GBP:41.0};
+let priceTiers=[{id:'retail',label:'Perakende',color:'#6366f1'},{id:'wholesale',label:'Toptan',color:'#16a34a'}];
+let tierMap={retail:'price1',wholesale:'price2'};
+function getTierLabel(tierId){ const t=priceTiers.find(t=>t.id===tierId); return t?t.label:tierId; }
+function getTierColor(tierId){ const t=priceTiers.find(t=>t.id===tierId); return t?t.color:'#6366f1'; }
+const CURRENCIES=['TRY','USD','EUR','GBP'];
+const CUR_SYMBOLS={TRY:'₺',USD:'$',EUR:'€',GBP:'£'};
+const CUR_FLAGS={TRY:'🇹🇷',USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧'};
+function toTRY(price,currency){
+  if(!currency||currency==='TRY') return price;
+  return price*(exchangeRates[currency]||1);
+}
+function fmtPrice(price,currency,showBoth){
+  const sym=CUR_SYMBOLS[currency]||'₺';
+  const orig=sym+Number(price).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!showBoth||!currency||currency==='TRY') return orig;
+  const tryVal=toTRY(price,currency);
+  return orig+' <span style="font-size:11px;color:var(--text3);font-weight:400">≈ ₺'+Math.round(tryVal).toLocaleString('tr-TR')+'</span>';
+}
 
 // ── API ────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -632,7 +748,8 @@ function applySettings() {
   if(settings.catalog_logo) {
     navLogo.innerHTML = `<img src="${settings.catalog_logo}" alt="${name}"> <span style="font-size:18px">${name}</span>`;
   } else {
-    navLogo.innerHTML = `<span>${name}</span>`;
+    const parts = name.match(/^(.+?)(\w+)$/) || [name, name.slice(0,-Math.ceil(name.length/3)), name.slice(-Math.ceil(name.length/3))];
+    navLogo.innerHTML = parts[1] + `<span>${parts[2]}</span>`;
   }
   // Auth logo
   $('auth-logo-text').textContent = name;
@@ -644,6 +761,14 @@ function applySettings() {
   if($('set-name')) $('set-name').value = settings.catalog_name||'';
   if($('set-phone')) $('set-phone').value = settings.whatsapp_phone||'';
   if($('set-wa-msg')) $('set-wa-msg').value = settings.whatsapp_message||'';
+  if($('set-webhook')) $('set-webhook').value = settings.webhook_url||'';
+  if(settings.exchange_rates){ try{ exchangeRates=JSON.parse(settings.exchange_rates); }catch{} }
+  if($('rate-usd')) { $('rate-usd').value=exchangeRates.USD||''; $('rate-eur').value=exchangeRates.EUR||''; $('rate-gbp').value=exchangeRates.GBP||''; }
+  if($('rates-updated')) $('rates-updated').textContent=settings.rates_updated_at?'Son güncelleme: '+new Date(settings.rates_updated_at).toLocaleString('tr-TR'):'Hiç güncellenmedi';
+  if(settings.price_tiers){ try{ priceTiers=JSON.parse(settings.price_tiers); }catch{} }
+  if(settings.tier_map){ try{ tierMap=JSON.parse(settings.tier_map); }catch{} }
+  renderTierConfig();
+  loadUserPriceSection();
   if($('logo-preview') && settings.catalog_logo){
     $('logo-preview').src = settings.catalog_logo;
     show('logo-preview');
@@ -692,7 +817,7 @@ function filterProducts(){
     const badge=p.badge&&bmap[p.badge]?`<span class="product-badge ${bmap[p.badge][0]}">${bmap[p.badge][1]}</span>`:'';
     const imgHtml=p.image?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain;padding:8px;background:#fff">`:`<span style="font-size:52px">${p.icon||'📦'}</span>`;
     const price=currentUser
-      ?`<span class="product-price">₺${Number(p.price).toLocaleString('tr-TR')}</span>`
+      ?`<span class="product-price">${fmtPrice(p.price,p.currency,true)}</span>`
       :`<button onclick="openAuth('login')" class="price-lock">🔒 Fiyatı Gör</button>`;
     const outOfStock=p.stock_qty===0;
     const stockLabel=p.stock_qty>0?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(22,163,74,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">${p.stock_qty} adet</span>`:p.stock_qty===0?'<span style="position:absolute;bottom:8px;right:8px;background:rgba(220,38,38,.92);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">Stokta Yok</span>':'';
@@ -718,16 +843,22 @@ function openProductDetail(pid){
   const specs=(typeof p.specs==='string')?JSON.parse(p.specs||'[]'):(p.specs||[]);
   const badge=p.badge&&bmap[p.badge]?`<span class="status ${p.badge==='new'?'status-approved':p.badge==='hot'?'status-pending':'status-rejected'}" style="margin-left:8px">${bmap[p.badge][1]}</span>`:'';
   const inCart=cart.find(i=>i.id===p.id);
-  const imgHtml=p.image
-    ?`<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:contain;padding:12px;background:#f8f9fc;border-radius:12px">`
-    :`<span style="font-size:72px">${p.icon||'📦'}</span>`;
+  const imgs=(p.images&&p.images.length)?p.images:[p.image].filter(Boolean);
+  const galleryHtml=imgs.length>0?`
+    <div class="gallery-wrap" id="gallery-wrap">
+      ${imgs.map((url,i)=>`<img class="gallery-img ${i===0?'active':''}" src="${url}" alt="${p.name}" data-idx="${i}">`).join('')}
+      ${imgs.length===0&&!p.image?`<div class="gallery-emoji"><span style="font-size:80px">${p.icon||'📦'}</span></div>`:''}
+      ${imgs.length>1?`<div class="gallery-dots">${imgs.map((_,i)=>`<div class="gallery-dot ${i===0?'active':''}" onclick="galleryGo(${i})"></div>`).join('')}</div>`:''}
+      ${imgs.length>1?'<div class="gallery-arrow gallery-prev" onclick="galleryStep(-1)">‹</div><div class="gallery-arrow gallery-next" onclick="galleryStep(1)">›</div>':''}
+    </div>`
+    :`<div class="gallery-wrap"><div class="gallery-emoji"><span>${p.icon||'📦'}</span></div></div>`;
   const priceHtml=currentUser
-    ?`<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--text)">₺${Number(p.price).toLocaleString('tr-TR')}</span>`
+    ?`<span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--text)">${fmtPrice(p.price,p.currency,true)}</span>`
     :`<button onclick="closeModal();openAuth('login')" style="display:flex;align-items:center;gap:6px;background:var(--accent-light);border:1px dashed var(--accent);border-radius:10px;padding:10px 16px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;color:var(--accent);font-weight:600">🔒 Fiyatı görmek için giriş yapın</button>`;
   const addBtnHtml=currentUser?`<button class="add-btn ${inCart?'added':''}" id="detail-add-btn" onclick="addToCart(${p.id});updateDetailBtn(${p.id})" style="padding:12px 24px;font-size:14px;border-radius:10px">${inCart?'✓ Listede':'+ Listeye Ekle'}</button>`:'';
   openModal('',`
     <div style="display:flex;flex-direction:column;gap:0">
-      <div style="width:100%;height:300px;background:#f8f9fc;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:22px;border:1px solid var(--border)">${imgHtml}</div>
+      ${galleryHtml}
       <div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px">${p.category}</span>
@@ -762,7 +893,7 @@ function addToCart(pid){
   const minQty = p.min_qty||1;
   const ex=cart.find(i=>i.id===pid);
   if(ex) ex.qty = Math.max(ex.qty+minQty, minQty);
-  else cart.push({id:p.id,sku:p.sku||'',brand:p.brand||'',name:p.name,icon:p.icon||'📦',image:p.image||'',price:p.price,qty:minQty,pack_qty:p.pack_qty||1,min_qty:minQty});
+  else cart.push({id:p.id,sku:p.sku||'',brand:p.brand||'',name:p.name,icon:p.icon||'📦',image:p.image||'',price:p.price,currency:p.currency||'TRY',price_try:toTRY(p.price,p.currency||'TRY'),qty:minQty,pack_qty:p.pack_qty||1,min_qty:minQty});
   updateFab(); renderPanel(); filterProducts();
   toast(`${p.name} listeye eklendi ✓`);
 }
@@ -778,7 +909,7 @@ function renderPanel(){
       <div class="list-item-img">${item.image?`<img src="${item.image}" alt="">`:`${item.icon}`}</div>
       <div class="list-item-info">
         <div class="list-item-name">${item.name}</div>
-        <div class="list-item-price">₺${(item.price*item.qty).toLocaleString('tr-TR')}</div>
+        <div class="list-item-price">${item.currency&&item.currency!=='TRY'?'<span style="font-size:11px;color:var(--text3)">'+CUR_SYMBOLS[item.currency]+Number(item.price*item.qty).toLocaleString('tr-TR')+'</span> ':''}<strong>₺${Math.round(item.price_try*item.qty).toLocaleString('tr-TR')}</strong></div>
       </div>
       <div class="list-item-qty">
         <button class="qty-btn" onclick="changeQty(${item.id},-1)">−</button>
@@ -787,8 +918,8 @@ function renderPanel(){
       </div>
       <button class="list-remove" onclick="removeFromCart(${item.id})">🗑</button>
     </div>`).join('');
-  const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
-  $('panel-total').textContent='₺'+total.toLocaleString('tr-TR');
+  const total=cart.reduce((s,i)=>s+(i.price_try||toTRY(i.price,i.currency||'TRY'))*i.qty,0);
+  $('panel-total').textContent='₺'+Math.round(total).toLocaleString('tr-TR');
   footer.style.display='block';
 }
 
@@ -797,7 +928,9 @@ async function submitList(){
   const btn=$('submit-list-btn');
   btn.disabled=true; btn.textContent='Gönderiliyor…';
   try{
-    await api('POST','/api/lists',{items:cart,note:''});
+    const listNote = ($('list-note-input')||{}).value||'';
+    await api('POST','/api/lists',{items:cart,note:listNote});
+    if($('list-note-input')) $('list-note-input').value='';
     cart=[]; updateFab(); renderPanel(); filterProducts();
     if(panelOpen) togglePanel();
     updateAdminBadge();
@@ -808,8 +941,8 @@ async function submitList(){
 }
 function sendWhatsApp(){
   if(!currentUser?.phone){toast('WhatsApp numarası tanımlı değil.');return}
-  const lines=cart.map(i=>`${i.icon} ${i.name} × ${i.qty} → ₺${(i.price*i.qty).toLocaleString('tr-TR')}`);
-  const total=cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const lines=cart.map(i=>`${i.icon} ${i.name} × ${i.qty} → ${CUR_SYMBOLS[i.currency]||'₺'}${(i.price*i.qty).toLocaleString('tr-TR')}${i.currency&&i.currency!=='TRY'?' (≈₺'+Math.round(i.price_try*i.qty).toLocaleString('tr-TR')+')':''}`);
+  const total=cart.reduce((s,i)=>s+(i.price_try||toTRY(i.price,i.currency||'TRY'))*i.qty,0);
   const txt=`📋 *${settings.catalog_name||'Katalog'} Listesi*\n👤 ${currentUser.name}\n📅 ${new Date().toLocaleDateString('tr-TR')}\n\n${lines.join('\n')}\n\n💰 *Toplam: ₺${total.toLocaleString('tr-TR')}*`;
   window.open(`https://wa.me/${currentUser.phone}?text=${encodeURIComponent(txt)}`,'_blank');
 }
@@ -821,7 +954,7 @@ function downloadPDF(){
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const catalogName = settings.catalog_name || 'Katalog';
   const date = new Date().toLocaleDateString('tr-TR');
-  const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  const total = cart.reduce((s,i) => s + (i.price_try||toTRY(i.price,i.currency||'TRY')) * i.qty, 0);
 
   // Header bg
   doc.setFillColor(26, 86, 219);
@@ -865,8 +998,9 @@ function downloadPDF(){
     doc.text(name, 14, y);
     doc.text(item.sku||'-', 90, y);
     doc.text(String(item.qty), 120, y, {align:'right'});
-    doc.text('TL '+Number(item.price).toLocaleString('tr-TR'), 155, y, {align:'right'});
-    doc.text('TL '+Number(item.price*item.qty).toLocaleString('tr-TR'), 197, y, {align:'right'});
+    const cur=item.currency||'TRY',sym=CUR_SYMBOLS[cur]||'TL',priceTRY=item.price_try||toTRY(item.price,cur);
+    doc.text((cur!=='TRY'?sym+Number(item.price).toFixed(2)+' / ':'')+'TL '+Math.round(priceTRY).toLocaleString('tr-TR'), 155, y, {align:'right'});
+    doc.text('TL '+Math.round(priceTRY*item.qty).toLocaleString('tr-TR'), 197, y, {align:'right'});
     doc.setDrawColor(226,228,233);
     doc.line(10, y+3, 200, y+3);
     y += 10;
@@ -880,7 +1014,7 @@ function downloadPDF(){
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
   doc.text('TOPLAM:', 125, y+1);
-  doc.text('TL '+total.toLocaleString('tr-TR'), 197, y+1, {align:'right'});
+  doc.text('TL '+Math.round(total).toLocaleString('tr-TR'), 197, y+1, {align:'right'});
 
   // Footer
   doc.setTextColor(150,160,180);
@@ -952,10 +1086,11 @@ function showPage(id){
   if(id==='admin') loadAdminPage();
 }
 function switchAdminTab(tab){
-  ['lists','products','users','reports','settings'].forEach(t=>{
+  ['dashboard','lists','products','users','reports','settings'].forEach(t=>{
     $('admin-section-'+t).style.display=t===tab?'block':'none';
     const el=$('admin-tab-'+t); if(el) el.classList.toggle('active',t===tab);
   });
+  if(tab==='dashboard') loadDashboard();
   if(tab==='products'){ loadProductsSection(); setTimeout(()=>fillCatSelect('prod-cat'),300); }
   if(tab==='users') loadUsersTable();
   if(tab==='lists') loadAdminLists();
@@ -1016,7 +1151,7 @@ async function updateAdminBadge(){
 }
 async function loadAdminPage(){
   if(!currentUser||currentUser.role!=='admin') return;
-  await loadAdminLists();
+  switchAdminTab('dashboard');
 }
 async function loadAdminLists(){
   const con=$('admin-lists-container');
@@ -1106,6 +1241,170 @@ async function doImport(products){
     await loadProducts(); await loadProductsSection();
   }catch(e){toast('Hata: '+e.message)}
 }
+
+
+
+// ── TIER KONFİGÜRASYON ────────────────────────────────
+function renderTierConfig(){
+  const list=$('tier-config-list');
+  if(!list) return;
+  list.innerHTML=priceTiers.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+      <span style="width:14px;height:14px;border-radius:50%;background:${t.color};display:inline-block;flex-shrink:0"></span>
+      <input class="form-control" style="flex:1;font-size:13px;font-weight:600" value="${t.label}" oninput="priceTiers[${i}].label=this.value;renderTierMapConfig()">
+      <input type="color" value="${t.color}" style="width:32px;border:none;padding:2px;cursor:pointer" oninput="priceTiers[${i}].color=this.value;this.previousElementSibling.previousElementSibling.style.background=this.value">
+      ${priceTiers.length>1?`<button class="btn btn-danger btn-sm" onclick="removeTier(${i})">✕</button>`:''}
+    </div>`).join('');
+  renderTierMapConfig();
+  // Form label'larını güncelle
+  const t1=priceTiers.find(t=>tierMap[t.id]==='price1'||Object.values(tierMap).indexOf('price1')===priceTiers.indexOf(t));
+  const t2=priceTiers.find(t=>tierMap[t.id]==='price2'||Object.values(tierMap).indexOf('price2')===priceTiers.indexOf(t));
+  if($('prod-price1-label')) $('prod-price1-label').textContent='Fiyat 1 ('+(t1?t1.label:'Perakende')+')';
+  if($('prod-price2-label')) $('prod-price2-label').textContent='Fiyat 2 ('+(t2?t2.label:'Toptan')+') (opsiyonel)';
+}
+function renderTierMapConfig(){
+  const el=$('tier-map-config'); if(!el) return;
+  el.innerHTML=priceTiers.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-weight:600;font-size:13px;min-width:100px;color:${t.color}">${t.label}</span>
+      <span style="font-size:12px;color:var(--text3)">→</span>
+      <select class="form-control" style="width:160px;font-size:13px" onchange="tierMap['${t.id}']=this.value">
+        <option value="price1" ${(tierMap[t.id]||'price1')==='price1'?'selected':''}>Fiyat 1 (Ana)</option>
+        <option value="price2" ${tierMap[t.id]==='price2'?'selected':''}>Fiyat 2 (İkincil)</option>
+      </select>
+    </div>`).join('');
+}
+function addTier(){
+  const label=V('new-tier-label').trim();
+  if(!label){toast('Etiket adı girin');return}
+  const id='tier_'+Date.now();
+  const color=$('new-tier-color').value||'#6366f1';
+  priceTiers.push({id,label,color});
+  tierMap[id]='price1';
+  $('new-tier-label').value='';
+  renderTierConfig();
+}
+function removeTier(idx){
+  if(priceTiers.length<=1){toast('En az 1 etiket olmalı');return}
+  const removed=priceTiers.splice(idx,1)[0];
+  delete tierMap[removed.id];
+  renderTierConfig();
+}
+async function saveTierConfig(){
+  try{
+    await api('PUT','/api/settings/tier-config',{price_tiers:priceTiers,tier_map:tierMap});
+    settings.price_tiers=JSON.stringify(priceTiers);
+    settings.tier_map=JSON.stringify(tierMap);
+    toast('Tier ayarları kaydedildi ✓');
+    loadUsersTable();
+  }catch(e){toast('Hata: '+e.message)}
+}
+
+// ── DÖVİZ KURLARI ─────────────────────────────────────
+async function saveRates(){
+  const rates={
+    USD:parseFloat(V('rate-usd'))||32.5,
+    EUR:parseFloat(V('rate-eur'))||35.0,
+    GBP:parseFloat(V('rate-gbp'))||41.0,
+  };
+  try{
+    await api('PUT','/api/exchange-rates',{rates});
+    exchangeRates=rates;
+    toast('Kurlar kaydedildi ✓');
+    $('rates-updated').textContent='Son güncelleme: '+new Date().toLocaleString('tr-TR');
+  }catch(e){toast('Hata: '+e.message)}
+}
+async function refreshRates(){
+  const btn=event.target;
+  btn.textContent='⏳ Çekiliyor...';btn.disabled=true;
+  try{
+    const data=await api('POST','/api/exchange-rates/refresh',{});
+    exchangeRates=data.rates;
+    $('rate-usd').value=data.rates.USD;
+    $('rate-eur').value=data.rates.EUR;
+    $('rate-gbp').value=data.rates.GBP;
+    $('rates-updated').textContent='Son güncelleme: '+new Date(data.updated_at).toLocaleString('tr-TR');
+    toast('Kurlar TCMB\'den güncellendi ✓');
+  }catch(e){toast('TCMB hatası: '+e.message)}
+  btn.textContent='🔄 TCMB\'den Çek';btn.disabled=false;
+}
+
+// ── DASHBOARD ─────────────────────────────────────────
+async function loadDashboard(){
+  if(!currentUser||currentUser.role!=='admin') return;
+  try{
+    const d = await api('GET','/api/dashboard');
+    $('dash-kpis').innerHTML=`
+      <div class="stat-card"><div class="stat-num" style="color:var(--warning)">${d.pending}</div><div class="stat-label">Onay Bekleyen</div></div>
+      <div class="stat-card"><div class="stat-num">${d.todayLists}</div><div class="stat-label">Bugünkü Liste</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--success)">₺${d.monthRev>=1000?(d.monthRev/1000).toFixed(1)+'K':Math.round(d.monthRev).toLocaleString('tr-TR')}</div><div class="stat-label">Aylık Ciro</div></div>
+      <div class="stat-card"><div class="stat-num">${d.totalUsers}</div><div class="stat-label">Müşteri</div></div>`;
+    if(!d.recentLists.length){
+      $('dash-recent-lists').innerHTML='<div style="padding:24px;text-align:center;color:var(--text3)">Henüz liste yok.</div>';return;
+    }
+    $('dash-recent-lists').innerHTML=`<table class="data-table">
+      <thead><tr><th>Liste No</th><th>Müşteri</th><th>Tutar</th><th>Durum</th><th>Tarih</th><th>İşlem</th></tr></thead>
+      <tbody>${d.recentLists.map(l=>`<tr style="${l.status==='pending'?'background:#fffcf0':''}">
+        <td><strong style="font-size:12px">${l.list_code}</strong></td>
+        <td style="font-weight:600;font-size:13px">${l.user_name}</td>
+        <td><strong>₺${Number(l.total).toLocaleString('tr-TR')}</strong></td>
+        <td>${statusBadge(l.status)}</td>
+        <td style="font-size:12px;color:var(--text3)">${new Date(l.created_at).toLocaleDateString('tr-TR')}</td>
+        <td style="display:flex;gap:4px">${l.status==='pending'?`<button class="btn btn-success btn-sm" onclick="approveList(${l.id})">Onayla</button><button class="btn btn-danger btn-sm" onclick="rejectList(${l.id})">Ret</button>`:`<button class="btn btn-ghost btn-sm" onclick="viewList(${l.id},'admin')">Detay</button>`}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }catch(e){console.error(e)}
+}
+
+// ── GALERİ ─────────────────────────────────────────────
+let _galIdx=0;
+function galleryGo(idx){
+  const imgs=document.querySelectorAll('.gallery-img');
+  const dots=document.querySelectorAll('.gallery-dot');
+  if(!imgs.length) return;
+  _galIdx=(idx+imgs.length)%imgs.length;
+  imgs.forEach((el,i)=>el.classList.toggle('active',i===_galIdx));
+  dots.forEach((el,i)=>el.classList.toggle('active',i===_galIdx));
+}
+function galleryStep(d){galleryGo(_galIdx+d)}
+
+// ── MÜŞTERİ ÖZEL FİYAT ────────────────────────────────
+async function loadUserPriceSection(){
+  try{
+    const [users,products] = await Promise.all([api('GET','/api/users'),api('GET','/api/products')]);
+    const uSel=$('up-user-sel'),pSel=$('up-prod-sel');
+    if(!uSel||!pSel) return;
+    uSel.innerHTML=users.filter(u=>u.role==='user').map(u=>`<option value="${u.id}">${u.name} (${u.email})</option>`).join('');
+    pSel.innerHTML=products.map(p=>`<option value="${p.id}">₺${p.price} — ${p.name}</option>`).join('');
+    const upList=$('up-list');
+    if(uSel.value) loadUserPrices(uSel.value);
+    uSel.onchange=()=>loadUserPrices(uSel.value);
+  }catch(e){console.error(e)}
+}
+async function loadUserPrices(userId){
+  try{
+    const prices=await api('GET',`/api/user-prices/${userId}`);
+    const upList=$('up-list');
+    if(!prices.length){upList.innerHTML='<div style="color:var(--text3);padding:12px;font-size:13px">Bu müşteri için özel fiyat yok.</div>';return}
+    upList.innerHTML=`<table class="data-table"><thead><tr><th>Ürün</th><th>Normal Fiyat</th><th>Özel Fiyat</th><th></th></tr></thead><tbody>
+    ${prices.map(p=>`<tr>
+      <td style="font-size:13px">${p.product_name}</td>
+      <td style="font-size:13px;color:var(--text3);text-decoration:line-through">₺${Number(p.base_price).toLocaleString('tr-TR')}</td>
+      <td style="font-size:13px;font-weight:700;color:var(--success)">₺${Number(p.price).toLocaleString('tr-TR')}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteUserPrice(${p.id})">Sil</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  }catch(e){console.error(e)}
+}
+async function addUserPrice(){
+  const user_id=V('up-user-sel'),product_id=V('up-prod-sel'),price=parseFloat(V('up-price'));
+  if(!user_id||!product_id||!price){toast('Tüm alanları doldurun');return}
+  try{await api('POST','/api/user-prices',{user_id,product_id,price});toast('Özel fiyat eklendi ✓');$('up-price').value='';loadUserPrices(user_id);}
+  catch(e){toast('Hata: '+e.message)}
+}
+async function deleteUserPrice(id){
+  try{await api('DELETE',`/api/user-prices/${id}`);toast('Silindi');const uid=V('up-user-sel');if(uid)loadUserPrices(uid);}
+  catch(e){toast('Hata: '+e.message)}
+}
+
 async function approveList(id){
   const note=await showNotePrompt('Onay Notu (opsiyonel)','Musteriye iletilecek not...');
   if(note===null) return;
@@ -1196,7 +1495,8 @@ async function loadProductsSection(){
       <td style="font-family:monospace;font-size:12px;color:var(--text3)">${p.sku||'—'}</td>
       <td><strong style="font-size:13px">${p.name}</strong>${p.brand?`<div style="font-size:11px;color:var(--accent);margin-top:1px">${p.brand}</div>`:''}</td>
       <td style="font-size:13px">${p.category}</td>
-      <td><strong>₺${Number(p.price).toLocaleString('tr-TR')}</strong></td>
+      <td><strong>${CUR_SYMBOLS[p.currency]||'₺'}${Number(p.price).toLocaleString('tr-TR')}</strong>${p.currency&&p.currency!=='TRY'?'<div style="font-size:10px;color:var(--text3)">≈₺'+Math.round(toTRY(p.price,p.currency)).toLocaleString('tr-TR')+'</div>':''}</td>
+      <td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:50px;background:var(--surface2)">${CUR_FLAGS[p.currency]||''} ${p.currency||'TRY'}</span></td>
       <td style="text-align:center">${p.stock_qty===0?'<span class="status status-rejected" style="font-size:10px">Yok</span>':p.stock_qty>0?`<span class="status status-approved" style="font-size:10px">${p.stock_qty}</span>`:`<span style="color:var(--text3);font-size:16px">∞</span>`}</td>
       <td style="font-size:12px;color:var(--text2)">${(p.min_qty||1)>1?`Min: ${p.min_qty}`:'—'}${(p.pack_qty||1)>1?`<br>Paket: ${p.pack_qty}`:''}  </td>
       <td style="display:flex;gap:4px"><button class="btn btn-edit btn-sm" onclick="openEditProduct(${p.id})">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">Sil</button></td>
@@ -1241,9 +1541,12 @@ async function addProduct(){
       pack_qty: parseInt(V('prod-pack-qty'))||1,
       min_qty:  parseInt(V('prod-min-qty'))||1,
       stock_qty: V('prod-stock-qty')===''?-1:parseInt(V('prod-stock-qty')),
+      currency: V('prod-currency')||'TRY',
+      price2: V('prod-price2')!==''?parseFloat(V('prod-price2'))||null:null,
+      currency2: V('prod-currency2')||null,
     });
     ['prod-sku','prod-brand','prod-name','prod-desc','prod-price','prod-icon','prod-specs'].forEach(id=>$(id).value='');
-    $('prod-pack-qty').value='1'; $('prod-min-qty').value='1'; $('prod-stock-qty').value='';
+    $('prod-pack-qty').value='1'; $('prod-min-qty').value='1'; $('prod-stock-qty').value=''; $('prod-currency').value='TRY'; $('prod-price2').value=''; $('prod-currency2').value='';
     $('add-img-input').value='';
     $('add-img-preview').style.display='none';
     await loadProducts();await loadProductsSection();
@@ -1273,7 +1576,23 @@ function openEditProduct(id){
     </div>
     <div class="form-group"><label>Açıklama</label><input class="form-control" id="ep-desc" value="${(p.description||'').replace(/"/g,'&quot;')}"></div>
     <div class="form-row">
-      <div class="form-group"><label>Fiyat (₺)</label><input class="form-control" id="ep-price" type="number" value="${p.price}"></div>
+      <div class="form-group">
+        <label id="ep-price1-label">Fiyat 1 (Perakende)</label>
+        <div style="display:flex;gap:6px">
+          <input class="form-control" id="ep-price" type="number" value="${p.price}" style="flex:1">
+          <select class="form-control" id="ep-currency" style="width:90px">${CURRENCIES.map(c=>`<option value="${c}" ${c===(p.currency||'TRY')?'selected':''}>${CUR_FLAGS[c]||''} ${c}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label id="ep-price2-label">Fiyat 2 (Toptan) <span style="font-weight:400;color:var(--text3)">(opsiyonel)</span></label>
+        <div style="display:flex;gap:6px">
+          <input class="form-control" id="ep-price2" type="number" value="${p.price2!=null?p.price2:''}" placeholder="Boş = Fiyat 1 kullanılır" style="flex:1">
+          <select class="form-control" id="ep-currency2" style="width:90px">
+            <option value="" ${!p.currency2?'selected':''}>Aynı</option>
+            ${CURRENCIES.map(c=>`<option value="${c}" ${c===(p.currency2||'')?'selected':''}>${CUR_FLAGS[c]||''} ${c}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div class="form-group"><label>Emoji İkon</label><input class="form-control" id="ep-icon" value="${p.icon||'📦'}"></div>
     </div>
     <div class="form-row">
@@ -1323,6 +1642,9 @@ async function saveEditProduct(id){
       price, icon:V('ep-icon')||'📦', image:imageUrl, specs, badge:V('ep-badge'),
       pack_qty: parseInt(V('ep-pack-qty'))||1,
       min_qty:  parseInt(V('ep-min-qty'))||1,
+      currency: V('ep-currency')||'TRY',
+      price2: V('ep-price2')!==''?parseFloat(V('ep-price2'))||null:null,
+      currency2: V('ep-currency2')||null,
     });
     closeModal();await loadProducts();await loadProductsSection();
     toast('Ürün güncellendi ✓');
@@ -1622,14 +1944,30 @@ async function applyBulkPrice(){
 async function loadUsersTable(){
   try{
     const users=await api('GET','/api/users');
-    $('users-tbody').innerHTML=users.map(u=>`
-      <tr>
-        <td><strong style="font-size:13px">${u.name}</strong></td>
+    $('users-tbody').innerHTML=users.filter(u=>u.role!=='admin').map(u=>{
+      const tier=u.price_tier||'retail';
+      const tierOpts=priceTiers.map(t=>`<option value="${t.id}" ${t.id===tier?'selected':''}>${t.label}</option>`).join('');
+      return `<tr>
+        <td><strong style="font-size:13px">${u.name}</strong><div style="font-size:11px;color:var(--text3)">${u.email}</div></td>
         <td style="color:var(--text3);font-size:12px">${u.email}</td>
         <td style="font-size:12px">${u.phone||'—'}</td>
+        <td>
+          <select class="form-control" style="font-size:12px;padding:4px 8px;width:auto;border-radius:20px;font-weight:600;color:${getTierColor(tier)};border-color:${getTierColor(tier)}" onchange="setUserTier(${u.id},this.value,this)">
+            ${tierOpts}
+          </select>
+        </td>
         <td><span style="background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:50px;font-size:12px;font-weight:600">${u.list_count||0}</span></td>
         <td style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString('tr-TR')}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
+  }catch(e){toast('Hata: '+e.message)}
+}
+async function setUserTier(userId, tier, selectEl){
+  try{
+    await api('PUT',`/api/users/${userId}/tier`,{price_tier:tier});
+    selectEl.style.color=getTierColor(tier);
+    selectEl.style.borderColor=getTierColor(tier);
+    toast('Etiket güncellendi ✓');
   }catch(e){toast('Hata: '+e.message)}
 }
 
