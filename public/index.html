@@ -272,7 +272,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 <!-- AUTH -->
 <div id="auth-overlay">
   <div class="auth-card">
-    <div class="auth-logo" id="auth-logo-text">Tekno<span>Katalog</span></div>
+    <div class="auth-logo" id="auth-logo-text">TeknoKatalog</div>
     <div class="auth-subtitle">Profesyonel ürün kataloğu sistemi</div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('login')">Giriş Yap</button>
@@ -297,7 +297,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 <!-- NAV -->
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo" id="nav-logo">Tekno<span>Katalog</span></div>
+    <div class="nav-logo" id="nav-logo"><span>TeknoKatalog</span></div>
     <div class="nav-center" id="nav-tabs">
       <button class="nav-tab active" onclick="showPage('catalog')">📦 Katalog</button>
       <button class="nav-tab" id="tab-customer" style="display:none" onclick="showPage('customer')">📋 Listelerim</button>
@@ -748,8 +748,7 @@ function applySettings() {
   if(settings.catalog_logo) {
     navLogo.innerHTML = `<img src="${settings.catalog_logo}" alt="${name}"> <span style="font-size:18px">${name}</span>`;
   } else {
-    const parts = name.match(/^(.+?)(\w+)$/) || [name, name.slice(0,-Math.ceil(name.length/3)), name.slice(-Math.ceil(name.length/3))];
-    navLogo.innerHTML = parts[1] + `<span>${parts[2]}</span>`;
+    navLogo.innerHTML = `<span>${name}</span>`;
   }
   // Auth logo
   $('auth-logo-text').textContent = name;
