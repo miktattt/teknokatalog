@@ -477,9 +477,12 @@ textarea.form-control{resize:vertical;min-height:80px}
     <!-- Users -->
     <div id="admin-section-users" style="display:none">
       <div class="card" style="padding:0;overflow:hidden">
-        <div style="padding:16px 18px;border-bottom:1px solid var(--border)"><strong>👥 Kayıtlı Müşteriler</strong></div>
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <strong style="flex:1">👥 Kayıtlı Müşteriler</strong>
+          <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ Müşteri Ekle</button>
+        </div>
         <div class="table-wrap">
-          <table class="data-table"><thead><tr><th>Ad</th><th>E-posta</th><th>WhatsApp</th><th>Fiyat Etiketi</th><th>Liste</th><th>Kayıt</th></tr></thead>
+          <table class="data-table"><thead><tr><th>Ad</th><th>E-posta</th><th>WhatsApp</th><th>Fiyat Etiketi</th><th>Liste</th><th>Kayıt</th><th>İşlem</th></tr></thead>
           <tbody id="users-tbody"></tbody></table>
         </div>
       </div>
@@ -1943,7 +1946,12 @@ async function applyBulkPrice(){
 async function loadUsersTable(){
   try{
     const users=await api('GET','/api/users');
-    $('users-tbody').innerHTML=users.filter(u=>u.role!=='admin').map(u=>{
+    const filtered=users.filter(u=>u.role!=='admin');
+    if(!filtered.length){
+      $('users-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Henüz kayıtlı müşteri yok</td></tr>';
+      return;
+    }
+    $('users-tbody').innerHTML=filtered.map(u=>{
       const tier=u.price_tier||'retail';
       const tierOpts=priceTiers.map(t=>`<option value="${t.id}" ${t.id===tier?'selected':''}>${t.label}</option>`).join('');
       return `<tr>
@@ -1957,16 +1965,90 @@ async function loadUsersTable(){
         </td>
         <td><span style="background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:50px;font-size:12px;font-weight:600">${u.list_count||0}</span></td>
         <td style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString('tr-TR')}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-edit btn-sm" onclick='openEditUserModal(${u.id},${JSON.stringify(u.name)},${JSON.stringify(u.email)},${JSON.stringify(u.phone||"")},${JSON.stringify(tier)})'>Düzenle</button>
+          <button class="btn btn-sm" style="background:#fff0f0;color:#ef4444;border:1px solid #fecaca;margin-left:4px" onclick='deleteUser(${u.id},${JSON.stringify(u.name)})'>Sil</button>
+        </td>
       </tr>`;
     }).join('');
   }catch(e){toast('Hata: '+e.message)}
 }
+
 async function setUserTier(userId, tier, selectEl){
   try{
     await api('PUT',`/api/users/${userId}/tier`,{price_tier:tier});
     selectEl.style.color=getTierColor(tier);
     selectEl.style.borderColor=getTierColor(tier);
     toast('Etiket güncellendi ✓');
+  }catch(e){toast('Hata: '+e.message)}
+}
+
+function openAddUserModal(){
+  const tierOpts=priceTiers.map(t=>`<option value="${t.id}">${t.label}</option>`).join('');
+  showModal('👤 Yeni Müşteri Ekle',`
+    <div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" placeholder="Ad Soyad"></div>
+    <div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" placeholder="ornek@mail.com"></div>
+    <div class="form-group"><label>Şifre *</label><input class="form-control" id="um-password" type="password" placeholder="En az 6 karakter"></div>
+    <div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" placeholder="05xx xxx xx xx"></div>
+    <div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>
+  `,[
+    {label:'Kaydet',cls:'btn-primary',action:'saveNewUser()'},
+    {label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}
+  ]);
+}
+
+async function saveNewUser(){
+  const name=$('um-name').value.trim();
+  const email=$('um-email').value.trim();
+  const password=$('um-password').value;
+  const phone=$('um-phone').value.trim();
+  const price_tier=$('um-tier').value;
+  if(!name||!email||!password){toast('Ad, e-posta ve şifre zorunlu.');return;}
+  try{
+    await api('POST','/api/users',{name,email,password,phone,price_tier});
+    closeModal();
+    loadUsersTable();
+    toast('Müşteri eklendi ✓');
+  }catch(e){toast('Hata: '+e.message)}
+}
+
+function openEditUserModal(id,name,email,phone,tier){
+  const tierOpts=priceTiers.map(t=>`<option value="${t.id}" ${t.id===tier?'selected':''}>${t.label}</option>`).join('');
+  showModal('✏️ Müşteriyi Düzenle',`
+    <div class="form-group"><label>Ad Soyad *</label><input class="form-control" id="um-name" value="${name.replace(/"/g,'&quot;')}" placeholder="Ad Soyad"></div>
+    <div class="form-group"><label>E-posta *</label><input class="form-control" id="um-email" type="email" value="${email}" placeholder="ornek@mail.com"></div>
+    <div class="form-group"><label>Yeni Şifre <span style="font-weight:400;color:var(--text3)">(boş bırakılırsa değişmez)</span></label><input class="form-control" id="um-password" type="password" placeholder="Değiştirmek için yazın"></div>
+    <div class="form-group"><label>WhatsApp</label><input class="form-control" id="um-phone" value="${phone}" placeholder="05xx xxx xx xx"></div>
+    <div class="form-group"><label>Fiyat Etiketi</label><select class="form-control" id="um-tier">${tierOpts}</select></div>
+  `,[
+    {label:'Kaydet',cls:'btn-primary',action:'saveEditUser('+id+')'},
+    {label:'Vazgeç',cls:'btn-ghost',action:'closeModal()'}
+  ]);
+}
+
+async function saveEditUser(id){
+  const name=$('um-name').value.trim();
+  const email=$('um-email').value.trim();
+  const password=$('um-password').value;
+  const phone=$('um-phone').value.trim();
+  const price_tier=$('um-tier').value;
+  if(!name||!email){toast('Ad ve e-posta zorunlu.');return;}
+  const body={name,email,phone,price_tier};
+  if(password) body.password=password;
+  try{
+    await api('PUT',`/api/users/${id}`,body);
+    closeModal();
+    loadUsersTable();
+    toast('Müşteri güncellendi ✓');
+  }catch(e){toast('Hata: '+e.message)}
+}
+
+async function deleteUser(id,name){
+  if(!confirm(`"${name}" adlı müşteriyi silmek istediğinize emin misiniz?`)) return;
+  try{
+    await api('DELETE',`/api/users/${id}`);
+    loadUsersTable();
+    toast('Müşteri silindi ✓');
   }catch(e){toast('Hata: '+e.message)}
 }
 
