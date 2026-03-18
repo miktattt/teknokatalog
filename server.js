@@ -245,8 +245,14 @@ app.post('/api/products', adminMiddleware, (req, res) => {
   res.json({ ...p, specs: JSON.parse(p.specs) });
 });
 
+// Görsel yükleme — /:id'den ÖNCE tanımlanmalı
+app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
+  res.json({ url: '/uploads/' + req.file.filename });
+});
+
 app.put('/api/products/:id', adminMiddleware, (req, res) => {
-  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty } = req.body;
+  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty, stock_qty } = req.body;
   db.prepare(
     'UPDATE products SET sku=?,brand=?,name=?,category=?,description=?,price=?,icon=?,image=?,specs=?,badge=?,pack_qty=?,min_qty=?,stock_qty=? WHERE id=?'
   ).run(sku||'', brand||'', name, category, description, price, icon, image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1, stock_qty!==undefined?stock_qty:-1, req.params.id);
@@ -257,12 +263,6 @@ app.put('/api/products/:id', adminMiddleware, (req, res) => {
 app.delete('/api/products/:id', adminMiddleware, (req, res) => {
   db.prepare('UPDATE products SET active=0 WHERE id=?').run(req.params.id);
   res.json({ success: true });
-});
-
-// Görsel yükleme
-app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
-  res.json({ url: '/uploads/' + req.file.filename });
 });
 
 // ════════════════════════════════════════════════════════
