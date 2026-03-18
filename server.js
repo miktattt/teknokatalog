@@ -174,9 +174,19 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.put('/api/settings', adminMiddleware, (req, res) => {
-  const allowed = ['catalog_name','catalog_logo','whatsapp_phone','whatsapp_message'];
+  const allowed = ['catalog_name','catalog_logo','whatsapp_phone','whatsapp_message','price_tiers','tier_map'];
   const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
   Object.entries(req.body).forEach(([k,v]) => { if(allowed.includes(k)) stmt.run(k,v); });
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const s = {}; rows.forEach(r => s[r.key] = r.value);
+  res.json(s);
+});
+
+app.put('/api/settings/tier-config', adminMiddleware, (req, res) => {
+  const { price_tiers, tier_map } = req.body;
+  const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  if (price_tiers !== undefined) stmt.run('price_tiers', JSON.stringify(price_tiers));
+  if (tier_map !== undefined) stmt.run('tier_map', JSON.stringify(tier_map));
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const s = {}; rows.forEach(r => s[r.key] = r.value);
   res.json(s);
@@ -245,14 +255,8 @@ app.post('/api/products', adminMiddleware, (req, res) => {
   res.json({ ...p, specs: JSON.parse(p.specs) });
 });
 
-// Görsel yükleme — /:id'den ÖNCE tanımlanmalı
-app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
-  res.json({ url: '/uploads/' + req.file.filename });
-});
-
 app.put('/api/products/:id', adminMiddleware, (req, res) => {
-  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty, stock_qty } = req.body;
+  const { name, category, description, price, icon, image, specs, badge, sku, brand, pack_qty, min_qty } = req.body;
   db.prepare(
     'UPDATE products SET sku=?,brand=?,name=?,category=?,description=?,price=?,icon=?,image=?,specs=?,badge=?,pack_qty=?,min_qty=?,stock_qty=? WHERE id=?'
   ).run(sku||'', brand||'', name, category, description, price, icon, image||'', JSON.stringify(specs||[]), badge||'', pack_qty||1, min_qty||1, stock_qty!==undefined?stock_qty:-1, req.params.id);
@@ -263,6 +267,12 @@ app.put('/api/products/:id', adminMiddleware, (req, res) => {
 app.delete('/api/products/:id', adminMiddleware, (req, res) => {
   db.prepare('UPDATE products SET active=0 WHERE id=?').run(req.params.id);
   res.json({ success: true });
+});
+
+// Görsel yükleme
+app.post('/api/products/upload-image', adminMiddleware, uploadProduct.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Dosya yüklenemedi.' });
+  res.json({ url: '/uploads/' + req.file.filename });
 });
 
 // ════════════════════════════════════════════════════════
@@ -321,17 +331,7 @@ app.put('/api/lists/:id/reject', adminMiddleware, (req, res) => {
 });
 
 app.get('/api/users', adminMiddleware, (req, res) => {
-  res.json(db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users ORDER BY created_at DESC').all());
-});
-
-app.put('/api/users/:id/tier', adminMiddleware, (req, res) => {
-  const { price_tier } = req.body;
-  try {
-    db.exec("ALTER TABLE users ADD COLUMN price_tier TEXT DEFAULT 'retail'");
-  } catch {}
-  db.prepare('UPDATE users SET price_tier=? WHERE id=?').run(price_tier||'retail', req.params.id);
-  const user = db.prepare('SELECT id,name,email,phone,role,price_tier,created_at FROM users WHERE id=?').get(req.params.id);
-  res.json(user);
+  res.json(db.prepare('SELECT id,name,email,phone,role,created_at FROM users ORDER BY created_at DESC').all());
 });
 
 // ── Bulk import ───────────────────────────────────────
