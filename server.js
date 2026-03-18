@@ -174,7 +174,7 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.put('/api/settings', adminMiddleware, (req, res) => {
-  const allowed = ['catalog_name','catalog_logo','whatsapp_phone','whatsapp_message','price_tiers','tier_map'];
+  const allowed = ['catalog_name','catalog_logo','whatsapp_phone','whatsapp_message','price_tiers','tier_map','exchange_rates','exchange_rates_updated'];
   const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
   Object.entries(req.body).forEach(([k,v]) => { if(allowed.includes(k)) stmt.run(k,v); });
   const rows = db.prepare('SELECT key, value FROM settings').all();
@@ -413,6 +413,53 @@ app.post('/api/products/bulk-import', adminMiddleware, (req, res) => {
   });
   insertMany(products);
   res.json({ ok, fail });
+});
+
+// ════════════════════════════════════════════════════════
+// EXCHANGE RATES
+// ════════════════════════════════════════════════════════
+app.get('/api/exchange-rates', (req, res) => {
+  const row = db.prepare("SELECT value FROM settings WHERE key='exchange_rates'").get();
+  const rates = row ? JSON.parse(row.value) : { USD: 32.5, EUR: 35.0, GBP: 41.0 };
+  const upd = db.prepare("SELECT value FROM settings WHERE key='exchange_rates_updated'").get();
+  res.json({ rates, updated_at: upd ? upd.value : null });
+});
+
+app.put('/api/exchange-rates', adminMiddleware, (req, res) => {
+  const { rates } = req.body;
+  if (!rates) return res.status(400).json({ error: 'Kurlar gerekli.' });
+  const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  stmt.run('exchange_rates', JSON.stringify(rates));
+  stmt.run('exchange_rates_updated', new Date().toISOString());
+  res.json({ rates, updated_at: new Date().toISOString() });
+});
+
+app.post('/api/exchange-rates/refresh', adminMiddleware, async (req, res) => {
+  try {
+    const https = require('https');
+    const xml = await new Promise((resolve, reject) => {
+      https.get('https://www.tcmb.gov.tr/kurlar/today.xml', (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
+    const parse = (code) => {
+      const m = xml.match(new RegExp(`CurrencyCode="${code}"[^>]*>[\s\S]*?<ForexSelling>([\d.]+)<\/ForexSelling>`));
+      return m ? parseFloat(m[1]) : null;
+    };
+    const USD = parse('USD');
+    const EUR = parse('EUR');
+    const GBP = parse('GBP');
+    if (!USD) return res.status(502).json({ error: 'TCMB verisi alınamadı.' });
+    const rates = { USD, EUR: EUR||USD*1.08, GBP: GBP||USD*1.27 };
+    const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    stmt.run('exchange_rates', JSON.stringify(rates));
+    stmt.run('exchange_rates_updated', new Date().toISOString());
+    res.json({ rates, updated_at: new Date().toISOString() });
+  } catch(e) {
+    res.status(502).json({ error: 'TCMB bağlantı hatası: ' + e.message });
+  }
 });
 
 // ── SPA fallback ───────────────────────────────────────
