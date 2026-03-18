@@ -297,14 +297,14 @@ textarea.form-control{resize:vertical;min-height:80px}
 <!-- NAV -->
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo" id="nav-logo"><span>TeknoKatalog</span></div>
+    <div class="nav-logo" id="nav-logo" onclick="showPage('catalog')" style="cursor:pointer"><span>TeknoKatalog</span></div>
     <div class="nav-center" id="nav-tabs">
       <button class="nav-tab active" onclick="showPage('catalog')">📦 Katalog</button>
       <button class="nav-tab" id="tab-customer" style="display:none" onclick="showPage('customer')">📋 Listelerim</button>
       <button class="nav-tab" id="tab-admin" style="display:none" onclick="showPage('admin')">⚙️ Panel<span class="tab-badge" id="admin-badge" style="display:none">0</span></button>
     </div>
     <div class="nav-right">
-      <div class="nav-user" id="nav-user-info" style="display:none">
+      <div class="nav-user" id="nav-user-info" style="display:none;cursor:pointer" onclick="openProfile()">
         <div class="nav-avatar" id="nav-avatar">A</div>
         <span id="nav-name" class="nav-name-text">Kullanıcı</span>
       </div>
@@ -319,7 +319,7 @@ textarea.form-control{resize:vertical;min-height:80px}
 <div class="page active" id="page-catalog">
   <div class="container">
     <div style="margin-bottom:20px">
-      <div class="page-title" id="catalog-page-title">Ürün Kataloğu</div>
+      <div style="display:flex;align-items:center;gap:10px"><button id="catalog-back-btn" onclick="goBack()" style="display:none;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer">← Geri</button><div class="page-title" id="catalog-page-title">Ürün Kataloğu</div></div>
       <div class="page-sub"><span id="product-count">0</span> ürün listeleniyor</div>
     </div>
 
@@ -353,7 +353,7 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div style="font-size:12px;color:var(--text3);margin-top:2px">Onay bekleyen listelerinizi düzenleyebilirsiniz</div>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><div class="table-wrap"><div id="customer-lists-container"></div></div></div>
-    <div style="margin-top:28px">
+    <div style="margin-top:28px" id="customer-profile-section">
       <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:700;margin-bottom:14px">👤 Profil</div>
       <div class="card">
         <div class="form-row">
@@ -715,6 +715,13 @@ function getProductPrice(p){
   if(mapped==='price2'&&p.price2!=null) return {price:p.price2,currency:p.currency2||p.currency||'TRY'};
   return {price:p.price,currency:p.currency||'TRY'};
 }
+function getProductPrice(p){
+  if(!currentUser) return {price:p.price,currency:p.currency||'TRY'};
+  const tier=currentUser.price_tier||'retail';
+  const mapped=tierMap[tier]||'price1';
+  if(mapped==='price2'&&p.price2!=null) return {price:p.price2,currency:p.currency2||p.currency||'TRY'};
+  return {price:p.price,currency:p.currency||'TRY'};
+}
 
 // Kullanıcının tier'ına göre doğru fiyatı döndür
 function getProductPrice(p){
@@ -775,8 +782,11 @@ function applySettings() {
   const navLogo = $('nav-logo');
   if(settings.catalog_logo) {
     navLogo.innerHTML = `<img src="${settings.catalog_logo}" alt="${name}"> <span style="font-size:18px">${name}</span>`;
+    navLogo.onclick=()=>showPage('catalog');
   } else {
     navLogo.innerHTML = `<span>${name}</span>`;
+    navLogo.style.cursor='pointer';
+    navLogo.onclick=()=>showPage('catalog');
   }
   // Auth logo
   $('auth-logo-text').textContent = name;
@@ -1106,7 +1116,24 @@ function doLogout(){
 }
 
 // ── NAV ───────────────────────────────────────────────
-function showPage(id){
+function goBack(){
+  if(_pageHistory.length>0){
+    const prev=_pageHistory.pop();
+    showPage(prev,false);
+    history.go(-1);
+  }
+}
+function openProfile(){
+  showPage('customer');
+  setTimeout(()=>{
+    const s=$('customer-profile-section');
+    if(s) s.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
+}
+let _pageHistory=[];
+function showPage(id, pushHistory=true){
+  const prev=document.querySelector('.page.active');
+  const prevId=prev?prev.id.replace('page-',''):null;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   $('page-'+id).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -1114,7 +1141,22 @@ function showPage(id){
   if(tab) tab.classList.add('active');
   if(id==='customer') loadCustomerPage();
   if(id==='admin') loadAdminPage();
+  if(pushHistory && prevId && prevId!==id){
+    _pageHistory.push(prevId);
+    history.pushState({page:id},'',location.pathname);
+  }
+  // Geri butonunu göster/gizle
+  const backBtn=$('catalog-back-btn');
+  if(backBtn) backBtn.style.display=_pageHistory.length>0?'inline-flex':'none';
 }
+window.addEventListener('popstate',()=>{
+  if(_pageHistory.length>0){
+    const prev=_pageHistory.pop();
+    showPage(prev,false);
+  } else {
+    history.pushState({},'',location.pathname);
+  }
+});
 function switchAdminTab(tab){
   ['dashboard','lists','products','users','reports','settings'].forEach(t=>{
     $('admin-section-'+t).style.display=t===tab?'block':'none';
@@ -2072,7 +2114,7 @@ async function viewList(id,context){
       ${itemsHtml}
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg)">
         <strong style="font-size:13px">Toplam</strong>
-        <strong style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px">₺${Number(list.total).toLocaleString('tr-TR')}</strong>
+        <strong style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px">₺${Math.round(list.items.reduce((s,i)=>{const iTRY=i.price_try||(i.price*(exchangeRates[i.currency||'TRY']||1));return s+iTRY*i.qty;},0)).toLocaleString('tr-TR')}</strong>
       </div>
     </div>
     ${list.note?`<div style="background:var(--accent-light);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent)">📝 ${list.note}</div>`:''}
