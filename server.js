@@ -332,6 +332,15 @@ app.put('/api/lists/:id/reject', adminMiddleware, (req, res) => {
   res.json({ ...list, items: JSON.parse(list.items) });
 });
 
+app.delete('/api/lists/:id', authMiddleware, (req, res) => {
+  const list = db.prepare('SELECT * FROM lists WHERE id=?').get(req.params.id);
+  if (!list) return res.status(404).json({ error: 'Liste bulunamadı.' });
+  if (list.user_id !== req.user.id) return res.status(403).json({ error: 'Bu liste size ait değil.' });
+  if (list.status !== 'pending') return res.status(400).json({ error: 'Sadece bekleyen listeler silinebilir.' });
+  db.prepare('DELETE FROM lists WHERE id=?').run(req.params.id);
+  res.json({ success: true });
+});
+
 app.get('/api/users', adminMiddleware, (req, res) => {
   try { db.exec("ALTER TABLE users ADD COLUMN price_tier TEXT DEFAULT 'retail'"); } catch {}
   const users = db.prepare(`
