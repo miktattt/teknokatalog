@@ -87,8 +87,7 @@ nav{background:rgba(255,255,255,.92);backdrop-filter:blur(20px);border-bottom:1p
 /* ── PRODUCTS GRID ── */
 .products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 @media(max-width:1100px){.products-grid{grid-template-columns:repeat(2,1fr);gap:18px}}
-@media(max-width:640px){.products-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
-@media(max-width:400px){.products-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.products-grid{grid-template-columns:1fr;gap:12px}}
 
 .product-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;transition:all .25s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-card);cursor:pointer;position:relative}
 .product-card:hover{transform:translateY(-5px);box-shadow:0 20px 60px rgba(0,0,0,.13);border-color:rgba(37,99,235,.15)}
@@ -1197,10 +1196,18 @@ async function loadCustomerPage(){
         <td>${statusBadge(l.status)}</td>
         <td style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="viewList(${l.id},'customer')">Görüntüle</button>
-          ${l.status==='pending'?`<button class="btn btn-edit btn-sm" onclick="openEditModal(${l.id})">✏️</button>`:''}
+          ${l.status==='pending'?`<button class="btn btn-edit btn-sm" onclick="openEditModal(${l.id})">✏️ Düzenle</button><button class="btn btn-sm" style="background:#fff0f0;color:#ef4444;border:1px solid #fecaca" onclick="deleteList(${l.id})">Sil</button>`:''}
         </td>
       </tr>`).join('')}
     </tbody></table>`;
+}
+async function deleteList(id){
+  if(!confirm('Bu listeyi silmek istediğinize emin misiniz?')) return;
+  try{
+    await api('DELETE',`/api/lists/${id}`);
+    loadCustomerPage();
+    toast('Liste silindi ✓');
+  }catch(e){toast('Hata: '+e.message)}
 }
 async function saveProfile(){
   try{
@@ -1478,16 +1485,26 @@ async function deleteUserPrice(id){
 }
 
 async function approveList(id){
-  const note=await showNotePrompt('Onay Notu (opsiyonel)','Musteriye iletilecek not...');
+  const note=await showNotePrompt('Onay Notu (opsiyonel)','Müşteriye iletilecek not...');
   if(note===null) return;
-  try{await api('PUT',`/api/lists/${id}/approve`,{admin_note:note});toast('Liste onaylandi');loadAdminLists();updateAdminBadge()}
+  try{await api('PUT',`/api/lists/${id}/approve`,{admin_note:note});toast('Liste onaylandı ✓');loadAdminLists();updateAdminBadge()}
   catch(e){toast('Hata: '+e.message)}
 }
 async function rejectList(id){
-  const note=await showNotePrompt('Red Nedeni','Musteriye red nedenini yazin...');
+  const note=await showNotePrompt('Red Nedeni','Müşteriye red nedenini yazın...');
   if(note===null) return;
   try{await api('PUT',`/api/lists/${id}/reject`,{admin_note:note});toast('Liste reddedildi');loadAdminLists();updateAdminBadge()}
   catch(e){toast('Hata: '+e.message)}
+}
+async function approveListFromModal(id){
+  closeModal();
+  await new Promise(r=>setTimeout(r,150));
+  await approveList(id);
+}
+async function rejectListFromModal(id){
+  closeModal();
+  await new Promise(r=>setTimeout(r,150));
+  await rejectList(id);
 }
 function showNotePrompt(title,placeholder){
   return new Promise(resolve=>{
@@ -2102,7 +2119,7 @@ async function viewList(id,context){
     </div>`;
   }).join('');
   const btns=[];
-  if(context==='admin'&&list.status==='pending'){btns.push({label:'Onayla',cls:'btn-success',action:`closeModal();approveList(${id})`});btns.push({label:'Reddet',cls:'btn-danger',action:`closeModal();rejectList(${id})`});}
+  if(context==='admin'&&list.status==='pending'){btns.push({label:'Onayla',cls:'btn-success',action:`approveListFromModal(${id})`});btns.push({label:'Reddet',cls:'btn-danger',action:`rejectListFromModal(${id})`});}
   btns.push({label:'Kapat',cls:'btn-ghost',action:'closeModal()'});
   openModal(`📋 ${list.list_code}`,`
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding:14px;background:var(--bg);border-radius:10px">
