@@ -1006,11 +1006,12 @@ function renderCatalog(){
 function buildCategoryTree(){
   const tree={};
   allProducts.forEach(p=>{
-    if(!tree[p.category]) tree[p.category]={count:0,brands:{}};
-    tree[p.category].count++;
+    const cat=(p.category||'Genel').trim();
+    if(!tree[cat]) tree[cat]={count:0,brands:{}};
+    tree[cat].count++;
     if(p.brand){
       const b=p.brand.trim();
-      if(b) tree[p.category].brands[b]=(tree[p.category].brands[b]||0)+1;
+      if(b) tree[cat].brands[b]=(tree[cat].brands[b]||0)+1;
     }
   });
   return tree;
@@ -1123,7 +1124,7 @@ function toggleFilterSidebar(){
 function filterProducts(){
   const q=V('search-input').toLowerCase().trim();
   const filtered=allProducts.filter(p=>{
-    const mc=activeCat==='Tümü'||p.category===activeCat;
+    const mc=activeCat==='Tümü'||(p.category||'').trim()===activeCat;
     const mb=!activeBrand||(p.brand||'').trim()===activeBrand;
     if(!q) return mc&&mb;
     const mq=p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q)||(p.barcode||'').toLowerCase().includes(q);
@@ -3184,17 +3185,23 @@ async function importProductsExcel(input){
     const text=decoded.replace(/^\uFEFF/,''); // BOM kaldır
     const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
     if(lines.length<2){toast('CSV boş veya geçersiz.');input.value='';return;}
-    const headers=parseCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/^"|"$/g,''));
+    const normHdr=h=>h.replace(/^"|"$/g,'').trim()
+      .replace(/İ/g,'i').replace(/Ğ/g,'g').replace(/Ü/g,'u')
+      .replace(/Ş/g,'s').replace(/Ö/g,'o').replace(/Ç/g,'c')
+      .toLowerCase()
+      .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s')
+      .replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c');
+    const headers=parseCSVLine(lines[0]).map(normHdr);
     const products=lines.slice(1).map(line=>{
       const vals=parseCSVLine(line);
       const obj={};
-      headers.forEach((h,i)=>obj[h]=vals[i]||'');
+      headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim());
       return {
         sku:obj['sku']||obj['urun kodu']||obj['product code']||'',
         brand:obj['marka']||obj['brand']||'',
-        name:obj['urun adi']||obj['adi']||obj['name']||obj['ürün adı']||'',
-        category:obj['kategori']||obj['category']||'Genel',
-        description:obj['aciklama']||obj['description']||obj['açıklama']||'',
+        name:obj['urun adi']||obj['adi']||obj['name']||'',
+        category:(obj['kategori']||obj['category']||'Genel').trim(),
+        description:obj['aciklama']||obj['description']||'',
         price:parseFloat(obj['fiyat']||obj['price']||obj['satis fiyati']||0)||0,
         price_retail:parseFloat(obj['perakende']||obj['price_retail']||0)||0,
         price_wholesale:parseFloat(obj['toptan']||obj['price_wholesale']||0)||0,

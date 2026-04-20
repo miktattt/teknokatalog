@@ -632,7 +632,7 @@ function buildProductFields(body) {
     barcode: barcode || '',
     brand: brand || '',
     name: String(name).trim(),
-    category: category || 'Genel',
+    category: (category || 'Genel').trim(),
     description: description || '',
     price: Number(price),
     price_retail: Number(price_retail) || 0,
@@ -1034,7 +1034,7 @@ app.post('/api/products/bulk-import', adminMiddleware, (req, res) => {
       try {
         if (!p.name || !p.price || parseFloat(p.price) <= 0) { fail++; continue; }
         stmt.run(
-          p.sku || '', p.barcode || '', p.brand || '', String(p.name).trim(), p.category || 'Genel',
+          p.sku || '', p.barcode || '', p.brand || '', String(p.name).trim(), (p.category || 'Genel').trim(),
           p.description || '', parseFloat(p.price), parseFloat(p.price_retail) || 0,
           parseFloat(p.price_wholesale) || 0, parseFloat(p.cost_price) || 0,
           parseFloat(p.vat_rate) || 0,
