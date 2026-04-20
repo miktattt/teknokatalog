@@ -1,0 +1,4 @@
+node_modules
+db/katalog.db
+public/uploads
+.env
